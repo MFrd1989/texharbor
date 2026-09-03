@@ -1,0 +1,48 @@
+import path from 'node:path';
+import cookie from '@fastify/cookie';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
+import Fastify from 'fastify';
+import { createPool, migrate } from '@texlyre/database';
+import { loadConfig } from './config.js';
+import { HttpError, sendError } from './http.js';
+import { registerRoutes } from './routes.js';
+
+const config = loadConfig();
+const app = Fastify({ logger: true, trustProxy: true, bodyLimit: 6 * 1024 * 1024 });
+const pool = createPool(config.databaseUrl);
+
+await app.register(cookie);
+await app.register(helmet, { contentSecurityPolicy: false, crossOriginEmbedderPolicy: false });
+await app.register(rateLimit, { global: false });
+
+app.addHook('onRequest', async (request) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
+  const origin = request.headers.origin;
+  if (origin && origin !== config.publicOrigin) throw new HttpError(403, 'Request origin is not allowed');
+});
+
+app.setErrorHandler((error, _request, reply) => sendError(reply, error));
+
+await migrate(pool, path.resolve(config.migrationsDirectory));
+await registerRoutes(app, pool, config);
+
+if (config.isProduction) {
+  await app.register(fastifyStatic, { root: path.resolve(config.webDirectory), wildcard: false });
+  app.setNotFoundHandler((request, reply) => {
+    if (request.url.startsWith('/api/')) return reply.code(404).send({ error: 'Not found' });
+    return reply.sendFile('index.html');
+  });
+}
+
+const close = async () => {
+  await app.close();
+  await pool.end();
+  process.exit(0);
+};
+process.on('SIGTERM', close);
+process.on('SIGINT', close);
+
+await app.listen({ host: '0.0.0.0', port: config.port });
+

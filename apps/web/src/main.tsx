@@ -1,0 +1,104 @@
+import { StrictMode, useCallback, useEffect, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import type { FileDto, ProjectDto, UserDto } from '@texlyre/contracts';
+import { api } from './api';
+import { CodeEditor } from './CodeEditor';
+import './styles.css';
+
+type AuthResponse = { user: UserDto | null };
+
+function AuthPage({ onAuthenticated }: { onAuthenticated: (user: UserDto) => void }) {
+  const [registering, setRegistering] = useState(false);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setBusy(true); setError('');
+    const form = new FormData(event.currentTarget);
+    try {
+      const body = Object.fromEntries(form.entries());
+      const result = await api<{ user: UserDto }>(`/api/auth/${registering ? 'register' : 'login'}`, { method: 'POST', body: JSON.stringify(body) });
+      onAuthenticated(result.user);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Authentication failed'); }
+    finally { setBusy(false); }
+  };
+  return <main className="auth-page">
+    <section className="auth-brand"><div className="mark">T<span>X</span></div><p className="eyebrow">SELF-HOSTED LATEX</p><h1>Write together.<br />Own every draft.</h1><p>A focused research workspace for source, review, and publication.</p></section>
+    <section className="auth-panel"><form onSubmit={submit} className="auth-card">
+      <p className="eyebrow">{registering ? 'CREATE YOUR ACCOUNT' : 'WELCOME BACK'}</p>
+      <h2>{registering ? 'Start a workspace' : 'Sign in'}</h2>
+      {registering && <label>Display name<input name="name" autoComplete="name" required maxLength={100} /></label>}
+      <label>Email address<input name="email" type="email" autoComplete="email" required /></label>
+      <label>Password<input name="password" type="password" autoComplete={registering ? 'new-password' : 'current-password'} minLength={registering ? 10 : undefined} required /></label>
+      {error && <p className="error" role="alert">{error}</p>}
+      <button className="primary wide" disabled={busy}>{busy ? 'Please wait…' : registering ? 'Create account' : 'Sign in'}</button>
+      <button type="button" className="text-button" onClick={() => { setRegistering(!registering); setError(''); }}>{registering ? 'Already have an account? Sign in' : 'New here? Create an account'}</button>
+    </form></section>
+  </main>;
+}
+
+function Dashboard({ user, onLogout }: { user: UserDto; onLogout: () => void }) {
+  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [view, setView] = useState<'projects' | 'trash'>('projects');
+  const [error, setError] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const load = useCallback(async () => {
+    try { setProjects((await api<{ projects: ProjectDto[] }>(`/api/projects${view === 'trash' ? '?view=trash' : ''}`)).projects); setError(''); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not load projects'); }
+  }, [view]);
+  useEffect(() => { void load(); }, [load]);
+  const create = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); const form = new FormData(event.currentTarget);
+    try { await api('/api/projects', { method: 'POST', body: JSON.stringify(Object.fromEntries(form.entries())) }); setShowCreate(false); await load(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not create project'); }
+  };
+  const trash = async (id: string) => { if (!confirm('Move this project to trash?')) return; await api(`/api/projects/${id}`, { method: 'DELETE' }); await load(); };
+  const restore = async (id: string) => { await api(`/api/projects/${id}/restore`, { method: 'POST' }); await load(); };
+  return <div className="app-shell">
+    <aside className="sidebar"><Link to="/" className="brand"><span className="mini-mark">TX</span><strong>TeXlyre</strong></Link><nav>
+      <button className={view === 'projects' ? 'active' : ''} onClick={() => setView('projects')}>▦ <span>My projects</span></button>
+      <button className={view === 'trash' ? 'active' : ''} onClick={() => setView('trash')}>♲ <span>Trash</span></button>
+    </nav><div className="sidebar-user"><span>{user.name.slice(0, 1).toUpperCase()}</span><div><strong>{user.name}</strong><small>{user.email}</small></div><button aria-label="Sign out" onClick={onLogout}>↪</button></div></aside>
+    <main className="dashboard"><header><div><p className="eyebrow">WORKSPACE</p><h1>{view === 'trash' ? 'Trash' : 'My projects'}</h1></div>{view === 'projects' && <button className="primary" onClick={() => setShowCreate(true)}>＋ New project</button>}</header>
+      {error && <p className="error" role="alert">{error}</p>}
+      <div className="project-head"><span>PROJECT</span><span>ROLE</span><span>LAST UPDATED</span><span>ACTIONS</span></div>
+      <section className="project-list">{projects.length === 0 ? <div className="empty"><div>∑</div><h2>{view === 'trash' ? 'Trash is empty' : 'No projects yet'}</h2><p>{view === 'trash' ? 'Deleted projects will appear here.' : 'Create a project and begin with main.tex.'}</p></div> : projects.map((project) => <article className="project-row" key={project.id}>
+        <Link to={`/projects/${project.id}`} className="project-title"><span className="file-icon">T<sub>E</sub>X</span><div><strong>{project.name}</strong><small>{project.description || 'No description'}</small></div></Link><span className="role">{project.role}</span><time>{new Date(project.updatedAt).toLocaleString()}</time><div className="row-actions">{view === 'trash' ? <button onClick={() => void restore(project.id)}>Restore</button> : <><Link className="button" to={`/projects/${project.id}`}>Open</Link>{project.role === 'owner' && <button className="danger" onClick={() => void trash(project.id)}>Trash</button>}</>}</div>
+      </article>)}</section>
+    </main>
+    {showCreate && <div className="dialog-backdrop" role="presentation"><form className="dialog" onSubmit={create}><h2>New project</h2><label>Project name<input name="name" defaultValue="Untitled paper" autoFocus required maxLength={200} /></label><label>Description<textarea name="description" rows={3} maxLength={2000} /></label><div><button type="button" onClick={() => setShowCreate(false)}>Cancel</button><button className="primary">Create project</button></div></form></div>}
+  </div>;
+}
+
+type ProjectDetail = ProjectDto & { mainFilePath: string; compiler: string };
+type FileContent = FileDto & { content: string | null };
+
+function Workspace() {
+  const { projectId = '' } = useParams(); const navigate = useNavigate();
+  const [project, setProject] = useState<ProjectDetail | null>(null); const [files, setFiles] = useState<FileDto[]>([]);
+  const [selected, setSelected] = useState<FileContent | null>(null); const [status, setStatus] = useState('Saved'); const [error, setError] = useState('');
+  const timer = useRef<number | undefined>(undefined);
+  const loadFiles = useCallback(async () => setFiles((await api<{ files: FileDto[] }>(`/api/projects/${projectId}/files`)).files), [projectId]);
+  useEffect(() => { void Promise.all([api<{ project: ProjectDetail }>(`/api/projects/${projectId}`).then((r) => setProject(r.project)), loadFiles()]).catch((cause) => setError(cause instanceof Error ? cause.message : 'Could not open project')); }, [projectId, loadFiles]);
+  useEffect(() => { if (!selected && files.length) { const main = files.find((file) => file.path === project?.mainFilePath) || files.find((file) => file.kind === 'file'); if (main) void openFile(main); } }, [files, project, selected]);
+  const openFile = async (file: FileDto) => { if (file.kind !== 'file') return; try { setSelected((await api<{ file: FileContent }>(`/api/projects/${projectId}/files/${file.id}`)).file); setStatus('Saved'); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not open file'); } };
+  const changed = (content: string) => { if (!selected || project?.role === 'viewer') return; setStatus('Saving…'); window.clearTimeout(timer.current); timer.current = window.setTimeout(async () => { try { await api(`/api/projects/${projectId}/files/${selected.id}`, { method: 'PATCH', body: JSON.stringify({ content }) }); setStatus('Saved'); } catch (cause) { setStatus('Save failed'); setError(cause instanceof Error ? cause.message : 'Save failed'); } }, 700); };
+  const createNode = async (kind: 'file' | 'directory') => { const name = prompt(`${kind === 'file' ? 'File' : 'Folder'} path, for example ${kind === 'file' ? '/chapters/introduction.tex' : '/figures'}:`); if (!name) return; try { await api(`/api/projects/${projectId}/files`, { method: 'POST', body: JSON.stringify({ path: name, kind, content: '' }) }); await loadFiles(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not create item'); } };
+  if (error && !project) return <main className="fatal"><h1>Could not open project</h1><p>{error}</p><button onClick={() => navigate('/')}>Back to projects</button></main>;
+  return <div className="workspace"><header className="workspace-header"><button className="back" onClick={() => navigate('/')}>← Projects</button><div><strong>{project?.name || 'Loading…'}</strong><span>{project?.compiler}</span></div><span className={`save-status ${status === 'Save failed' ? 'failed' : ''}`}>● {status}</span></header>
+    <aside className="file-panel"><div className="panel-title"><strong>Files</strong>{project?.role !== 'viewer' && <span><button title="New file" onClick={() => void createNode('file')}>＋</button><button title="New folder" onClick={() => void createNode('directory')}>▱</button></span>}</div><div className="file-tree">{files.map((file) => <button key={file.id} className={selected?.id === file.id ? 'selected' : ''} style={{ paddingLeft: `${12 + (file.path.split('/').length - 2) * 16}px` }} onClick={() => void openFile(file)}>{file.kind === 'directory' ? '▸' : '▤'} {file.path.split('/').at(-1)}</button>)}</div></aside>
+    <main className="source-panel"><div className="tabbar"><span>{selected?.path || 'Select a file'}</span>{error && <span className="inline-error">{error}</span>}</div>{selected ? <CodeEditor key={selected.id} value={selected.content || ''} readOnly={project?.role === 'viewer'} onChange={changed} /> : <div className="editor-empty">Select a source file</div>}</main>
+  </div>;
+}
+
+function App() {
+  const [user, setUser] = useState<UserDto | null | undefined>(undefined);
+  useEffect(() => { void api<AuthResponse>('/api/me').then((result) => setUser(result.user)).catch(() => setUser(null)); }, []);
+  if (user === undefined) return <div className="loading">Loading workspace…</div>;
+  if (!user) return <AuthPage onAuthenticated={setUser} />;
+  const logout = async () => { await api('/api/auth/logout', { method: 'POST' }); setUser(null); };
+  return <Routes><Route path="/" element={<Dashboard user={user} onLogout={() => void logout()} />} /><Route path="/projects/:projectId" element={<Workspace />} /><Route path="*" element={<Navigate to="/" />} /></Routes>;
+}
+
+createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);
