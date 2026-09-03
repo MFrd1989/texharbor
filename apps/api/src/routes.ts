@@ -13,6 +13,7 @@ import {
   type ProjectRole,
 } from '@texlyre/contracts';
 import { authenticateUser, createSession, currentUser, destroySession, registerUser, requireUser } from './auth.js';
+import { signCollaborationToken } from './collaboration-token.js';
 import type { Config } from './config.js';
 import { HttpError, parseBody } from './http.js';
 import { mimeTypeFor, normalizeProjectPath } from './paths.js';
@@ -216,6 +217,15 @@ export async function registerRoutes(app: FastifyInstance, pool: DatabasePool, c
     const file = result.rows[0];
     if (!file) throw new HttpError(404, 'File not found');
     return { file: { ...file, content: file.isBinary ? null : file.content?.toString('utf8') ?? null } };
+  });
+
+  app.post('/api/projects/:projectId/files/:fileId/collaboration-token', async (request) => {
+    const user = await requireUser(pool, request);
+    const { projectId, fileId } = request.params as { projectId: string; fileId: string };
+    await requireProject(pool, projectId, user.id);
+    const file = await pool.query("SELECT 1 FROM project_files WHERE id = $1 AND project_id = $2 AND kind = 'file' AND NOT is_binary", [fileId, projectId]);
+    if (!file.rowCount) throw new HttpError(404, 'Editable source file not found');
+    return { token: signCollaborationToken(config.sessionSecret, { userId: user.id, projectId, fileId, expiresAt: Date.now() + 5 * 60 * 1000 }), documentName: `${projectId}:${fileId}` };
   });
 
   app.patch('/api/projects/:projectId/files/:fileId', async (request) => {

@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import type { FileDto, ProjectDto, UserDto } from '@texlyre/contracts';
 import { api } from './api';
-import { CodeEditor } from './CodeEditor';
+import { CodeEditor, type Collaborator } from './CodeEditor';
 import './styles.css';
 
 type AuthResponse = { user: UserDto | null };
@@ -80,23 +80,22 @@ function Dashboard({ user, onLogout }: { user: UserDto; onLogout: () => void }) 
 type ProjectDetail = ProjectDto & { mainFilePath: string; compiler: string };
 type FileContent = FileDto & { content: string | null };
 
-function Workspace() {
+function Workspace({ user }: { user: UserDto }) {
   const { projectId = '' } = useParams(); const navigate = useNavigate();
   const [project, setProject] = useState<ProjectDetail | null>(null); const [files, setFiles] = useState<FileDto[]>([]);
-  const [selected, setSelected] = useState<FileContent | null>(null); const [status, setStatus] = useState('Saved'); const [error, setError] = useState('');
-  const timer = useRef<number | undefined>(undefined);
+  const [selected, setSelected] = useState<FileContent | null>(null); const [status, setStatus] = useState('Connecting…'); const [error, setError] = useState('');
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const loadFiles = useCallback(async () => setFiles((await api<{ files: FileDto[] }>(`/api/projects/${projectId}/files`)).files), [projectId]);
   useEffect(() => { void Promise.all([api<{ project: ProjectDetail }>(`/api/projects/${projectId}`).then((r) => setProject(r.project)), loadFiles()]).catch((cause) => setError(cause instanceof Error ? cause.message : 'Could not open project')); }, [projectId, loadFiles]);
   useEffect(() => { if (!selected && files.length) { const main = files.find((file) => file.path === project?.mainFilePath) || files.find((file) => file.kind === 'file'); if (main) void openFile(main); } }, [files, project, selected]);
   const openFile = async (file: FileDto) => { if (file.kind !== 'file') return; if (file.isBinary) { setSelected(null); setError(`${file.path} is a binary asset and cannot be edited as source.`); return; } try { setError(''); setSelected((await api<{ file: FileContent }>(`/api/projects/${projectId}/files/${file.id}`)).file); setStatus('Saved'); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not open file'); } };
-  const changed = (content: string) => { if (!selected || project?.role === 'viewer') return; setStatus('Saving…'); window.clearTimeout(timer.current); timer.current = window.setTimeout(async () => { try { await api(`/api/projects/${projectId}/files/${selected.id}`, { method: 'PATCH', body: JSON.stringify({ content }) }); setStatus('Saved'); } catch (cause) { setStatus('Save failed'); setError(cause instanceof Error ? cause.message : 'Save failed'); } }, 700); };
   const createNode = async (kind: 'file' | 'directory') => { const name = prompt(`${kind === 'file' ? 'File' : 'Folder'} path, for example ${kind === 'file' ? '/chapters/introduction.tex' : '/figures'}:`); if (!name) return; try { await api(`/api/projects/${projectId}/files`, { method: 'POST', body: JSON.stringify({ path: name, kind, content: '' }) }); await loadFiles(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not create item'); } };
   const renameNode = async (file: FileDto) => { const nextPath = prompt('New path:', file.path)?.trim(); if (!nextPath || nextPath === file.path) return; try { await api(`/api/projects/${projectId}/files/${file.id}`, { method: 'PATCH', body: JSON.stringify({ path: nextPath }) }); if (selected?.id === file.id) setSelected(null); await loadFiles(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not rename item'); } };
   const deleteNode = async (file: FileDto) => { if (!confirm(`Delete ${file.path}${file.kind === 'directory' ? ' and everything inside it' : ''}?`)) return; try { await api(`/api/projects/${projectId}/files/${file.id}`, { method: 'DELETE' }); if (selected?.id === file.id) setSelected(null); await loadFiles(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not delete item'); } };
   if (error && !project) return <main className="fatal"><h1>Could not open project</h1><p>{error}</p><button onClick={() => navigate('/')}>Back to projects</button></main>;
-  return <div className="workspace"><header className="workspace-header"><button className="back" onClick={() => navigate('/')}>← Projects</button><div><strong>{project?.name || 'Loading…'}</strong><span>{project?.compiler}</span></div><span className={`save-status ${status === 'Save failed' ? 'failed' : ''}`}>● {status}</span></header>
+  return <div className="workspace"><header className="workspace-header"><button className="back" onClick={() => navigate('/')}>← Projects</button><div><strong>{project?.name || 'Loading…'}</strong><span>{project?.compiler}</span></div><div className="presence" aria-label="Online collaborators">{collaborators.map((collaborator) => <span key={collaborator.clientId} title={`${collaborator.name} · online`} style={{ backgroundColor: collaborator.color }}>{collaborator.name.slice(0, 1).toUpperCase()}</span>)}</div><span className={`save-status ${['Access denied', 'Offline'].includes(status) ? 'failed' : ''}`}>● {status}</span></header>
     <aside className="file-panel"><div className="panel-title"><strong>Files</strong>{project?.role !== 'viewer' && <span><button title="New file" onClick={() => void createNode('file')}>＋</button><button title="New folder" onClick={() => void createNode('directory')}>▱</button></span>}</div><div className="file-tree">{files.map((file) => <div className="tree-row" key={file.id}><button className={selected?.id === file.id ? 'selected' : ''} style={{ paddingLeft: `${12 + (file.path.split('/').length - 2) * 16}px` }} onClick={() => void openFile(file)}>{file.kind === 'directory' ? '▸' : file.isBinary ? '◇' : '▤'} {file.path.split('/').at(-1)}</button>{project?.role !== 'viewer' && <span><button title={`Rename ${file.path}`} onClick={() => void renameNode(file)}>✎</button><button title={`Delete ${file.path}`} onClick={() => void deleteNode(file)}>×</button></span>}</div>)}</div></aside>
-    <main className="source-panel"><div className="tabbar"><span>{selected?.path || 'Select a file'}</span>{error && <span className="inline-error">{error}</span>}</div>{selected ? <CodeEditor key={selected.id} value={selected.content || ''} readOnly={project?.role === 'viewer'} onChange={changed} /> : <div className="editor-empty">Select a source file</div>}</main>
+    <main className="source-panel"><div className="tabbar"><span>{selected?.path || 'Select a file'}</span>{error && <span className="inline-error">{error}</span>}</div>{selected ? <CodeEditor key={selected.id} projectId={projectId} fileId={selected.id} user={user} readOnly={project?.role === 'viewer'} onStatus={setStatus} onPresence={setCollaborators} /> : <div className="editor-empty">Select a source file</div>}</main>
   </div>;
 }
 
@@ -106,7 +105,7 @@ function App() {
   if (user === undefined) return <div className="loading">Loading workspace…</div>;
   if (!user) return <AuthPage onAuthenticated={setUser} />;
   const logout = async () => { await api('/api/auth/logout', { method: 'POST' }); setUser(null); };
-  return <Routes><Route path="/" element={<Dashboard user={user} onLogout={() => void logout()} />} /><Route path="/projects/:projectId" element={<Workspace />} /><Route path="*" element={<Navigate to="/" />} /></Routes>;
+  return <Routes><Route path="/" element={<Dashboard user={user} onLogout={() => void logout()} />} /><Route path="/projects/:projectId" element={<Workspace user={user} />} /><Route path="*" element={<Navigate to="/" />} /></Routes>;
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);

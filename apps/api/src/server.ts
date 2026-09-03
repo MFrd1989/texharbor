@@ -7,6 +7,7 @@ import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import { createPool, migrate } from '@texlyre/database';
 import { loadConfig } from './config.js';
+import { attachCollaborationServer } from './collaboration.js';
 import { HttpError, sendError } from './http.js';
 import { registerRoutes } from './routes.js';
 
@@ -29,6 +30,7 @@ app.setErrorHandler((error, _request, reply) => sendError(reply, error));
 
 await migrate(pool, path.resolve(config.migrationsDirectory));
 await registerRoutes(app, pool, config);
+const collaboration = attachCollaborationServer(app.server, pool, config.sessionSecret);
 
 if (config.isProduction) {
   await app.register(fastifyStatic, { root: path.resolve(config.webDirectory), wildcard: false });
@@ -39,6 +41,7 @@ if (config.isProduction) {
 }
 
 const close = async () => {
+  await collaboration.destroy();
   await app.close();
   await pool.end();
   process.exit(0);

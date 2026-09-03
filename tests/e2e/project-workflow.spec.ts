@@ -54,3 +54,30 @@ test('imports an Overleaf-style ZIP with nested files and binary assets', async 
   await expect(page.getByRole('button', { name: /pixel\.png/ })).toBeVisible();
   await expect(page.locator('.cm-content')).toContainText('Imported source');
 });
+
+test('synchronizes CRDT edits and awareness between simultaneous editors', async ({ page, context }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New here? Create an account' }).click();
+  await page.getByLabel('Display name').fill('Collaboration Researcher');
+  await page.getByLabel('Email address').fill(`collaboration-${Date.now()}@example.test`);
+  await page.getByLabel('Password').fill('collaboration-e2e-password');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await page.getByRole('button', { name: '＋ New project' }).click();
+  await page.getByLabel('Project name').fill('Collaborative Paper');
+  await page.locator('.dialog').getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('link', { name: /Collaborative Paper/ }).click();
+  await expect(page.getByText('● Saved', { exact: true })).toBeVisible({ timeout: 15_000 });
+
+  const peer = await context.newPage();
+  await peer.goto(page.url());
+  await expect(peer.getByText('● Saved', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.presence > span')).toHaveCount(2);
+
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('\nSynchronized edit');
+  await expect(peer.locator('.cm-content')).toContainText('Synchronized edit');
+
+  await peer.close();
+  await expect(page.locator('.presence > span')).toHaveCount(1);
+});
