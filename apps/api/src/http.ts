@@ -18,6 +18,11 @@ export function sendError(reply: FastifyReply, error: unknown): void {
     void reply.code(error.statusCode).send({ error: error.message });
     return;
   }
+  const statusError = error as { statusCode?: number; message?: string };
+  if (statusError?.statusCode && statusError.statusCode >= 400 && statusError.statusCode < 500) {
+    void reply.code(statusError.statusCode).send({ error: statusError.message || 'Invalid request' });
+    return;
+  }
   const databaseError = error as { code?: string };
   if (databaseError?.code === '23505') {
     void reply.code(409).send({ error: 'That value is already in use' });
@@ -26,4 +31,3 @@ export function sendError(reply: FastifyReply, error: unknown): void {
   reply.log.error(error);
   void reply.code(500).send({ error: 'Internal server error' });
 }
-

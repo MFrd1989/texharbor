@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import JSZip from 'jszip';
 
 test('creates an account, project, and durably saves source', async ({ page }) => {
   const browserErrors: string[] = [];
@@ -31,3 +32,25 @@ test('creates an account, project, and durably saves source', async ({ page }) =
   expect(browserErrors).toEqual([]);
 });
 
+test('imports an Overleaf-style ZIP with nested files and binary assets', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New here? Create an account' }).click();
+  await page.getByLabel('Display name').fill('ZIP Researcher');
+  await page.getByLabel('Email address').fill(`zip-e2e-${Date.now()}@example.test`);
+  await page.getByLabel('Password').fill('zip-end-to-end-password');
+  await page.getByRole('button', { name: 'Create account' }).click();
+
+  const zip = new JSZip();
+  zip.file('paper/main.tex', '\\documentclass{article}\n\\begin{document}\nImported source\n\\end{document}');
+  zip.file('paper/chapters/introduction.tex', 'Nested chapter');
+  zip.file('paper/figures/pixel.png', Uint8Array.from([137, 80, 78, 71, 0]));
+  const buffer = await zip.generateAsync({ type: 'nodebuffer' });
+  await page.locator('input[type="file"]').setInputFiles({ name: 'overleaf-paper.zip', mimeType: 'application/zip', buffer });
+
+  await expect(page.getByText('overleaf-paper', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: /overleaf-paper/ }).click();
+  await expect(page.getByRole('button', { name: /main\.tex/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /introduction\.tex/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /pixel\.png/ })).toBeVisible();
+  await expect(page.locator('.cm-content')).toContainText('Imported source');
+});

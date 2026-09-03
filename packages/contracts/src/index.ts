@@ -50,6 +50,6 @@ export type FileDto = {
   kind: 'file' | 'directory';
   mimeType: string | null;
   size: number;
+  isBinary: boolean;
   updatedAt: string;
 };
-

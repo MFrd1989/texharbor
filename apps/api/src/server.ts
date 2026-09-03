@@ -1,6 +1,7 @@
 import path from 'node:path';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
+import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
@@ -16,6 +17,7 @@ const pool = createPool(config.databaseUrl);
 await app.register(cookie);
 await app.register(helmet, { contentSecurityPolicy: false, crossOriginEmbedderPolicy: false });
 await app.register(rateLimit, { global: false });
+await app.register(multipart, { limits: { files: 1, fileSize: 100 * 1024 * 1024, fields: 5 } });
 
 app.addHook('onRequest', async (request) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
@@ -45,4 +47,3 @@ process.on('SIGTERM', close);
 process.on('SIGINT', close);
 
 await app.listen({ host: '0.0.0.0', port: config.port });
-
