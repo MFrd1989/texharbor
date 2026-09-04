@@ -26,11 +26,14 @@ async function claimJob(): Promise<ClaimedJob | null> {
   });
 }
 
-async function finishJob(job: ClaimedJob, status: 'completed' | 'failed', exitCode: number | null, log: string, artifactPath: string | null): Promise<void> {
+type FinishedStatus = 'completed' | 'completed_with_errors' | 'failed';
+
+async function finishJob(job: ClaimedJob, status: FinishedStatus, exitCode: number | null, log: string, artifactPath: string | null): Promise<void> {
   await transaction(pool, async (client) => {
     await client.query(`UPDATE compile_jobs SET status = $2, exit_code = $3, log = $4, artifact_path = $5, completed_at = now()
       WHERE id = $1`, [job.id, status, exitCode, log.slice(0, 2_000_000), artifactPath]);
-    await client.query('INSERT INTO activity (project_id, actor_id, action, target_type, target_id, metadata) VALUES ($1, $2, $3, \'compile_job\', $4, $5)', [job.project_id, job.requested_by, status === 'completed' ? 'compile.completed' : 'compile.failed', job.id, { compiler: job.compiler, exitCode }]);
+    const action = status === 'failed' ? 'compile.failed' : status === 'completed_with_errors' ? 'compile.completed_with_errors' : 'compile.completed';
+    await client.query('INSERT INTO activity (project_id, actor_id, action, target_type, target_id, metadata) VALUES ($1, $2, $3, \'compile_job\', $4, $5)', [job.project_id, job.requested_by, action, job.id, { compiler: job.compiler, exitCode }]);
   });
 }
 
@@ -56,7 +59,7 @@ async function executeJob(job: ClaimedJob, volumeMountpoint: string): Promise<vo
       Ulimits: [{ Name: 'fsize', Soft: 104_857_600, Hard: 104_857_600 }, { Name: 'nofile', Soft: 1024, Hard: 1024 }],
     },
   });
-  let exitCode: number | null = null; let timedOut = false;
+  let exitCode: number | null = null; let timedOut = false; let artifactPath: string | null = null;
   try {
     await container.start();
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -72,16 +75,16 @@ async function executeJob(job: ClaimedJob, volumeMountpoint: string): Promise<vo
     catch { log = String(await container.logs({ stdout: true, stderr: true })).slice(0, 2_000_000); }
     if (timedOut) log = `Compilation exceeded the 120 second limit.\n${log}`;
     const pdf = path.join(results, 'output.pdf');
-    let artifact: string | null = null;
-    try { const details = await stat(pdf); if (details.size > 50 * 1024 * 1024) throw new Error('Generated PDF exceeds 50 MB'); if (exitCode === 0) artifact = path.posix.join(resultRelative, 'output.pdf'); }
+    try { const details = await stat(pdf); if (details.size > 50 * 1024 * 1024) throw new Error('Generated PDF exceeds 50 MB'); if (!timedOut) artifactPath = path.posix.join(resultRelative, 'output.pdf'); }
     catch (error) { if (exitCode === 0) { exitCode = 1; log = `${log}\n${error instanceof Error ? error.message : 'No PDF was generated.'}`; } }
-    await finishJob(job, exitCode === 0 && artifact ? 'completed' : 'failed', exitCode, log, artifact);
+    const status: FinishedStatus = !artifactPath ? 'failed' : exitCode === 0 ? 'completed' : 'completed_with_errors';
+    await finishJob(job, status, exitCode, log, artifactPath);
   } catch (error) {
     await finishJob(job, 'failed', exitCode, error instanceof Error ? error.stack || error.message : String(error), null);
   } finally {
     try { await container.remove({ force: true }); } catch { /* already removed */ }
     await rm(staging, { recursive: true, force: true });
-    if (exitCode !== 0) await rm(results, { recursive: true, force: true });
+    if (!artifactPath) await rm(results, { recursive: true, force: true });
   }
 }
 

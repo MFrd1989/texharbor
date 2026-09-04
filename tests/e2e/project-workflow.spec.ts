@@ -48,9 +48,12 @@ test('creates an account, keeps a persistent session, and durably saves source',
 
   await editor.click();
   await page.keyboard.press('Control+A');
-  await page.keyboard.type('\\documentclass{article}\n\\begin{document}\n\\undefinedcommand\n\\end{document}');
+  await page.keyboard.insertText('\\documentclass{article}\n\\begin{document}\nBefore \\undefinedcommand after a recoverable error.\n\\end{document}');
+  await expect(editor).toContainText('\\end{document}');
   await page.getByRole('button', { name: 'Compile', exact: true }).click();
-  await expect(page.locator('.job-state')).toHaveText('failed', { timeout: 30_000 });
+  await expect(page.locator('.job-state')).toHaveText('completed with errors', { timeout: 30_000 });
+  await expect(page.locator('iframe[title="Compiled PDF"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Logs' }).click();
   await expect(page.locator('.build-log')).toContainText('Undefined control sequence');
   expect(browserErrors).toEqual([]);
 });

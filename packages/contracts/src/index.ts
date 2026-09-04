@@ -118,7 +118,7 @@ export type Compiler = 'pdflatex' | 'xelatex' | 'lualatex';
 export type CompileJobDto = {
   id: string;
   projectId: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
+  status: 'queued' | 'running' | 'completed' | 'completed_with_errors' | 'failed';
   compiler: Compiler;
   mainFilePath: string;
   sourceHash: string;

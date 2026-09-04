@@ -11,7 +11,7 @@ import { HttpError } from './http.js';
 import { requireProject } from './routes.js';
 
 type JobRow = {
-  id: string; projectId: string; status: 'queued' | 'running' | 'completed' | 'failed'; compiler: string;
+  id: string; projectId: string; status: 'queued' | 'running' | 'completed' | 'completed_with_errors' | 'failed'; compiler: string;
   mainFilePath: string; sourceHash: string; exitCode: number | null; log: string | null; artifactPath: string | null;
   queuedAt: Date; startedAt: Date | null; completedAt: Date | null;
 };
@@ -68,7 +68,7 @@ export async function registerCompilationRoutes(app: FastifyInstance, pool: Data
   app.get('/api/projects/:projectId/compile/:jobId/pdf', async (request, reply) => {
     const user = await requireUser(pool, request); const { projectId, jobId } = request.params as { projectId: string; jobId: string };
     await requireProject(pool, projectId, user.id);
-    const result = await pool.query<{ artifact_path: string | null }>("SELECT artifact_path FROM compile_jobs WHERE id = $1 AND project_id = $2 AND status = 'completed'", [jobId, projectId]);
+    const result = await pool.query<{ artifact_path: string | null }>("SELECT artifact_path FROM compile_jobs WHERE id = $1 AND project_id = $2 AND status IN ('completed', 'completed_with_errors')", [jobId, projectId]);
     const artifact = result.rows[0]?.artifact_path;
     if (!artifact) throw new HttpError(404, 'Compiled PDF not found');
     const root = path.resolve(config.storageRoot); const target = path.resolve(root, artifact);

@@ -6,7 +6,7 @@ LaTeX Workspace is a self-hosted collaborative LaTeX platform with its own user 
 
 The current vertical slices provide local accounts, rolling 180-day server sessions, server-owned projects, rename/duplicate, project trash/restore/permanent deletion, nested files, a CodeMirror source workspace, and validated Overleaf-style ZIP imports with binary assets. Text documents use Yjs through an authenticated Hocuspocus WebSocket endpoint, with PostgreSQL persistence, IndexedDB offline recovery, live presence, and remote cursor support. Email-bound invitation links, owner/editor/viewer roles, live role changes, and revocation are enforced by the API and collaboration server. Persistent comment threads support replies, resolve/reopen, deletion, and Yjs-relative source anchors.
 
-LaTeX compilation runs asynchronously in disposable, network-disabled Docker sandboxes. pdfLaTeX, XeLaTeX, and LuaLaTeX are supported through `latexmk`; the workspace includes build status, logs, compiler/main-document settings, and an authenticated PDF viewer. History and Google Drive backups remain later end-to-end slices.
+LaTeX compilation runs asynchronously in disposable, network-disabled Docker sandboxes. pdfLaTeX, XeLaTeX, and LuaLaTeX are supported through `latexmk`; the workspace includes build status, logs, compiler/main-document settings, and an authenticated PDF viewer. Recoverable LaTeX errors retain the newly generated PDF and are reported as `completed with errors`; fatal builds without a PDF remain failed. History and Google Drive backups remain later end-to-end slices.
 
 ## Development
 
