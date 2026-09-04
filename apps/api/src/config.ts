@@ -6,6 +6,7 @@ export type Config = {
   isProduction: boolean;
   migrationsDirectory: string;
   webDirectory: string;
+  storageRoot: string;
 };
 
 export function loadConfig(): Config {
@@ -22,6 +23,6 @@ export function loadConfig(): Config {
     isProduction,
     migrationsDirectory: process.env.MIGRATIONS_DIR || 'packages/database/migrations',
     webDirectory: process.env.WEB_DIR || 'apps/web/dist',
+    storageRoot: process.env.STORAGE_ROOT || '/data/projects',
   };
 }
-

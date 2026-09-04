@@ -6,9 +6,11 @@ import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import { createPool, migrate } from '@texlyre/database';
+import { refreshSession } from './auth.js';
 import { loadConfig } from './config.js';
 import { attachCollaborationServer } from './collaboration.js';
 import { registerCommentRoutes } from './comments.js';
+import { registerCompilationRoutes } from './compilation.js';
 import { HttpError, sendError } from './http.js';
 import { registerRoutes } from './routes.js';
 
@@ -26,6 +28,11 @@ app.addHook('onRequest', async (request) => {
   const origin = request.headers.origin;
   if (origin && origin !== config.publicOrigin) throw new HttpError(403, 'Request origin is not allowed');
 });
+app.addHook('onSend', async (request, reply, payload) => {
+  try { await refreshSession(pool, request, reply, config.isProduction); }
+  catch (error) { request.log.warn({ error }, 'Could not refresh session expiration'); }
+  return payload;
+});
 
 app.setErrorHandler((error, _request, reply) => sendError(reply, error));
 
@@ -33,6 +40,7 @@ await migrate(pool, path.resolve(config.migrationsDirectory));
 const collaboration = attachCollaborationServer(app.server, pool, config.sessionSecret);
 await registerRoutes(app, pool, config, collaboration);
 await registerCommentRoutes(app, pool);
+await registerCompilationRoutes(app, pool, collaboration, config);
 
 if (config.isProduction) {
   await app.register(fastifyStatic, { root: path.resolve(config.webDirectory), wildcard: false });

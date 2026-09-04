@@ -20,6 +20,8 @@ export const createProjectSchema = z.object({
 export const updateProjectSchema = z.object({
   name: projectNameSchema.optional(),
   description: z.string().trim().max(2000).optional(),
+  compiler: z.enum(['pdflatex', 'xelatex', 'lualatex']).optional(),
+  mainFilePath: z.string().min(1).max(1000).optional(),
 }).refine((value) => Object.keys(value).length > 0, 'No changes supplied');
 
 export const fileKindSchema = z.enum(['file', 'directory']);
@@ -111,4 +113,19 @@ export type CommentThreadDto = {
   createdAt: string;
   updatedAt: string;
   comments: CommentDto[];
+};
+export type Compiler = 'pdflatex' | 'xelatex' | 'lualatex';
+export type CompileJobDto = {
+  id: string;
+  projectId: string;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  compiler: Compiler;
+  mainFilePath: string;
+  sourceHash: string;
+  exitCode: number | null;
+  log: string | null;
+  hasPdf: boolean;
+  queuedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
 };

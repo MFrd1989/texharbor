@@ -275,11 +275,17 @@ export async function registerRoutes(app: FastifyInstance, pool: DatabasePool, c
     const user = await requireUser(pool, request);
     const { projectId } = request.params as { projectId: string };
     const access = await requireProject(pool, projectId, user.id);
-    if (access.role !== 'owner') throw new HttpError(403, 'Only the owner can rename this project');
+    if (access.role !== 'owner') throw new HttpError(403, 'Only the owner can change project settings');
     const input = parseBody(updateProjectSchema, request.body);
+    const mainFilePath = input.mainFilePath === undefined ? null : normalizeProjectPath(input.mainFilePath);
+    if (mainFilePath) {
+      const main = await pool.query("SELECT 1 FROM project_files WHERE project_id = $1 AND path = $2 AND kind = 'file' AND NOT is_binary", [projectId, mainFilePath]);
+      if (!main.rowCount || !mainFilePath.toLowerCase().endsWith('.tex')) throw new HttpError(400, 'Main document must be an existing .tex file');
+    }
     const result = await pool.query(`UPDATE projects SET
-      name = COALESCE($2, name), description = COALESCE($3, description), updated_at = now()
-      WHERE id = $1 RETURNING id, name, description, updated_at AS "updatedAt"`, [projectId, input.name ?? null, input.description ?? null]);
+      name = COALESCE($2, name), description = COALESCE($3, description), compiler = COALESCE($4, compiler),
+      main_file_path = COALESCE($5, main_file_path), updated_at = now()
+      WHERE id = $1 RETURNING id, name, description, compiler, main_file_path AS "mainFilePath", updated_at AS "updatedAt"`, [projectId, input.name ?? null, input.description ?? null, input.compiler ?? null, mainFilePath]);
     await pool.query("INSERT INTO activity (project_id, actor_id, action, target_type, target_id) VALUES ($1, $2, 'project.updated', 'project', $3)", [projectId, user.id, projectId]);
     return { project: result.rows[0] };
   });

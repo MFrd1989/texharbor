@@ -17,6 +17,7 @@ function parseDocumentName(documentName: string): { projectId: string; fileId: s
 
 export type CollaborationServer = {
   disconnectProject: (projectId: string) => Promise<void>;
+  persistProject: (projectId: string) => Promise<void>;
   destroy: () => Promise<void>;
 };
 
@@ -94,6 +95,20 @@ export function attachCollaborationServer(httpServer: HttpServer, pool: Database
   };
   httpServer.on('upgrade', upgrade);
   return {
+    persistProject: async (projectId) => {
+      const prefix = `${projectId}:`;
+      for (const [documentName, document] of hocuspocus.documents) {
+        if (!documentName.startsWith(prefix) || document.isLoading) continue;
+        const { fileId } = parseDocumentName(documentName);
+        const state = Y.encodeStateAsUpdate(document);
+        const content = document.getText('content').toString();
+        await transaction(pool, async (client) => {
+          await client.query(`INSERT INTO collaboration_documents (document_name, project_id, file_id, state, updated_at)
+            VALUES ($1, $2, $3, $4, now()) ON CONFLICT (document_name) DO UPDATE SET state = EXCLUDED.state, updated_at = now()`, [documentName, projectId, fileId, Buffer.from(state)]);
+          await client.query('UPDATE project_files SET content = $3, size = octet_length($3::bytea), updated_at = now() WHERE id = $1 AND project_id = $2', [fileId, projectId, Buffer.from(content)]);
+        });
+      }
+    },
     disconnectProject: async (projectId) => {
       hocuspocus.flushPendingStores();
       const files = await pool.query<{ document_name: string }>(`SELECT project_id::text || ':' || id::text AS document_name

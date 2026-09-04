@@ -1,8 +1,9 @@
 import { StrictMode, useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import type { CommentAnchorDto, CommentThreadDto, FileDto, ProjectDto, UserDto } from '@texlyre/contracts';
+import type { CommentAnchorDto, CommentThreadDto, Compiler, FileDto, ProjectDto, UserDto } from '@texlyre/contracts';
 import { api } from './api';
+import { BuildPanel } from './BuildPanel';
 import { CodeEditor, type Collaborator } from './CodeEditor';
 import { CommentsPanel } from './CommentsPanel';
 import { SharingDialog } from './SharingDialog';
@@ -79,7 +80,7 @@ function Dashboard({ user, onLogout }: { user: UserDto; onLogout: () => void }) 
   </div>;
 }
 
-type ProjectDetail = ProjectDto & { mainFilePath: string; compiler: string };
+type ProjectDetail = ProjectDto & { mainFilePath: string; compiler: Compiler };
 type FileContent = FileDto & { content: string | null };
 
 function Workspace({ user }: { user: UserDto }) {
@@ -104,6 +105,7 @@ function Workspace({ user }: { user: UserDto }) {
   return <div className={`workspace ${showComments ? 'comments-open' : ''}`}><header className="workspace-header"><button className="back" onClick={() => navigate('/')}>← Projects</button><div><strong>{project?.name || 'Loading…'}</strong><span>{project?.compiler}</span></div>{project && <button className="share-button" onClick={() => setShowSharing(true)}>{project.role === 'owner' ? 'Share' : 'Collaborators'}</button>}<button className="workspace-action" onClick={() => setShowComments((open) => !open)}>Comments</button><div className="presence" aria-label="Online collaborators">{collaborators.map((collaborator) => <span key={collaborator.clientId} title={`${collaborator.name} · online`} style={{ backgroundColor: collaborator.color }}>{collaborator.name.slice(0, 1).toUpperCase()}</span>)}</div><span className={`save-status ${['Access denied', 'Offline'].includes(status) ? 'failed' : ''}`}>● {status}</span></header>
     <aside className="file-panel"><div className="panel-title"><strong>Files</strong>{project?.role !== 'viewer' && <span><button title="New file" onClick={() => void createNode('file')}>＋</button><button title="New folder" onClick={() => void createNode('directory')}>▱</button></span>}</div><div className="file-tree">{files.map((file) => <div className="tree-row" key={file.id}><button className={selected?.id === file.id ? 'selected' : ''} style={{ paddingLeft: `${12 + (file.path.split('/').length - 2) * 16}px` }} onClick={() => void openFile(file)}>{file.kind === 'directory' ? '▸' : file.isBinary ? '◇' : '▤'} {file.path.split('/').at(-1)}</button>{project?.role !== 'viewer' && <span><button title={`Rename ${file.path}`} onClick={() => void renameNode(file)}>✎</button><button title={`Delete ${file.path}`} onClick={() => void deleteNode(file)}>×</button></span>}</div>)}</div></aside>
     <main className="source-panel"><div className="tabbar"><span>{selected?.path || 'Select a file'}</span>{error && <span className="inline-error">{error}</span>}</div>{selected ? <CodeEditor key={`${selected.id}:${connectionEpoch}`} projectId={projectId} fileId={selected.id} user={user} readOnly={project?.role === 'viewer'} onStatus={setStatus} onPresence={setCollaborators} onRole={(role) => setProject((current) => current && current.role !== role ? { ...current, role } : current)} onAccessLost={(message) => { setError(message); setProject(null); }} onConnectionReset={() => setConnectionEpoch((epoch) => epoch + 1)} onSelection={setCommentSelection} jumpRequest={jumpRequest} /> : <div className="editor-empty">Select a source file</div>}</main>
+    {project && <BuildPanel projectId={projectId} project={project} files={files} onSettings={(settings) => setProject((current) => current ? { ...current, ...settings } : current)} />}
     {showComments && project && <CommentsPanel projectId={projectId} fileId={selected?.id || null} selection={commentSelection} user={user} role={project.role} onClose={() => setShowComments(false)} onJump={(thread) => void jumpToComment(thread)} />}
     {showSharing && project && <SharingDialog projectId={projectId} role={project.role} onClose={() => setShowSharing(false)} />}
   </div>;

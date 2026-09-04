@@ -5,11 +5,11 @@
   "type": "module",
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
-    "build": "npm run build -w @texlyre/contracts && npm run build -w @texlyre/database && npm run build -w @texlyre/api && npm run build -w @texlyre/web",
+    "build": "npm run build -w @texlyre/contracts && npm run build -w @texlyre/database && npm run build -w @texlyre/api && npm run build -w @texlyre/worker && npm run build -w @texlyre/web",
     "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @texlyre/api\" \"npm run dev -w @texlyre/web\"",
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "playwright test",
-    "typecheck": "npm run build -w @texlyre/contracts && npm run build -w @texlyre/database && npm run typecheck -w @texlyre/api && npm run typecheck -w @texlyre/web"
+    "typecheck": "npm run build -w @texlyre/contracts && npm run build -w @texlyre/database && npm run typecheck -w @texlyre/api && npm run typecheck -w @texlyre/worker && npm run typecheck -w @texlyre/web"
   },
   "devDependencies": {
     "@playwright/test": "1.55.1",

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import JSZip from 'jszip';
 
-test('creates an account, project, and durably saves source', async ({ page }) => {
+test('creates an account, keeps a persistent session, and durably saves source', async ({ page, context }) => {
   const browserErrors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') browserErrors.push(message.text());
@@ -15,6 +15,10 @@ test('creates an account, project, and durably saves source', async ({ page }) =
   await page.getByLabel('Password').fill('end-to-end-test-password');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'My projects' })).toBeVisible();
+  const session = (await context.cookies()).find((cookie) => cookie.name === 'texlyre_session');
+  expect(session?.httpOnly).toBe(true);
+  expect(session?.secure).toBe(true);
+  expect(session?.expires || 0).toBeGreaterThan(Date.now() / 1000 + 170 * 24 * 60 * 60);
 
   await page.getByRole('button', { name: '＋ New project' }).click();
   await page.getByLabel('Project name').fill('E2E Paper');
@@ -29,6 +33,25 @@ test('creates an account, project, and durably saves source', async ({ page }) =
 
   await page.reload();
   await expect(page.locator('.cm-content')).toContainText('Durable source');
+  await page.getByRole('button', { name: 'Compile', exact: true }).click();
+  await expect(page.locator('iframe[title="Compiled PDF"]')).toBeVisible({ timeout: 30_000 });
+  const projectId = new URL(page.url()).pathname.split('/').at(-1)!;
+  const latestBuild = await page.evaluate(async (id) => {
+    const response = await fetch(`/api/projects/${id}/compile`);
+    return (await response.json()).jobs[0] as { id: string; status: string; hasPdf: boolean };
+  }, projectId);
+  expect(latestBuild.status).toBe('completed');
+  expect(latestBuild.hasPdf).toBe(true);
+  const pdf = await page.request.get(`/api/projects/${projectId}/compile/${latestBuild.id}/pdf`);
+  expect(pdf.ok()).toBe(true);
+  expect(pdf.headers()['content-type']).toContain('application/pdf');
+
+  await editor.click();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.type('\\documentclass{article}\n\\begin{document}\n\\undefinedcommand\n\\end{document}');
+  await page.getByRole('button', { name: 'Compile', exact: true }).click();
+  await expect(page.locator('.job-state')).toHaveText('failed', { timeout: 30_000 });
+  await expect(page.locator('.build-log')).toContainText('Undefined control sequence');
   expect(browserErrors).toEqual([]);
 });
 
@@ -169,6 +192,8 @@ test('invites a separate user and enforces role changes and revocation', async (
   expect(forbiddenStatus).toBe(403);
   const renameStatus = await invitee.evaluate(async (id) => (await fetch(`/api/projects/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Unauthorized rename' }) })).status, projectId);
   expect(renameStatus).toBe(403);
+  const compileStatus = await invitee.evaluate(async (id) => (await fetch(`/api/projects/${id}/compile`, { method: 'POST' })).status, projectId);
+  expect(compileStatus).toBe(403);
 
   page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Remove' }).click();

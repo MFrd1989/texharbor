@@ -6,7 +6,8 @@ import type { UserDto } from '@texlyre/contracts';
 import { HttpError } from './http.js';
 
 const cookieName = 'texlyre_session';
-const sessionLifetimeMs = 30 * 24 * 60 * 60 * 1000;
+export const sessionLifetimeMs = 180 * 24 * 60 * 60 * 1000;
+const sessionRenewalAgeMs = 24 * 60 * 60 * 1000;
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 type UserRow = { id: string; name: string; email: string; created_at: Date };
@@ -27,7 +28,19 @@ export async function createSession(pool: DatabasePool, reply: FastifyReply, use
     secure,
     sameSite: 'lax',
     expires: expiresAt,
+    maxAge: Math.floor(sessionLifetimeMs / 1000),
   });
+}
+
+export async function refreshSession(pool: DatabasePool, request: FastifyRequest, reply: FastifyReply, secure: boolean): Promise<void> {
+  const token = request.cookies[cookieName];
+  if (!token) return;
+  const expiresAt = new Date(Date.now() + sessionLifetimeMs);
+  const result = await pool.query(`UPDATE sessions SET expires_at = $2, last_seen_at = now()
+    WHERE token_hash = $1 AND expires_at > now() AND last_seen_at < now() - ($3::bigint * interval '1 millisecond')
+    RETURNING token_hash`, [hashToken(token), expiresAt, sessionRenewalAgeMs]);
+  if (!result.rowCount) return;
+  reply.setCookie(cookieName, token, { path: '/', httpOnly: true, secure, sameSite: 'lax', expires: expiresAt, maxAge: Math.floor(sessionLifetimeMs / 1000) });
 }
 
 export async function destroySession(pool: DatabasePool, request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -44,7 +57,6 @@ export async function currentUser(pool: DatabasePool, request: FastifyRequest): 
     WHERE s.token_hash = $1 AND s.expires_at > now()`, [hashToken(token)]);
   const row = result.rows[0];
   if (!row) return null;
-  void pool.query('UPDATE sessions SET last_seen_at = now() WHERE token_hash = $1', [hashToken(token)]).catch(() => undefined);
   return toUser(row);
 }
 
@@ -68,4 +80,3 @@ export async function authenticateUser(pool: DatabasePool, email: string, passwo
   if (!row || !(await argon2.verify(row.password_hash, password))) throw new HttpError(401, 'Invalid email or password');
   return toUser(row);
 }
-
