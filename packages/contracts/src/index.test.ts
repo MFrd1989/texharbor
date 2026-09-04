@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createProjectSchema, registerSchema } from './index.js';
+import { createCommentThreadSchema, createProjectSchema, registerSchema } from './index.js';
 
 describe('account contracts', () => {
   it('normalizes email addresses', () => {
@@ -17,3 +17,13 @@ describe('project contracts', () => {
   });
 });
 
+describe('comment contracts', () => {
+  it('accepts a bounded Yjs source anchor', () => {
+    const result = createCommentThreadSchema.parse({ fileId: '6f1d45a5-70f7-40e7-b76d-4be42edc7870', body: 'Needs a citation', anchor: { start: 'AQID', end: 'BAUG', quote: 'claim' } });
+    expect(result.body).toBe('Needs a citation');
+  });
+
+  it('rejects malformed source anchors', () => {
+    expect(createCommentThreadSchema.safeParse({ fileId: '6f1d45a5-70f7-40e7-b76d-4be42edc7870', body: 'Comment', anchor: { start: '<script>', end: 'AQID', quote: '' } }).success).toBe(false);
+  });
+});

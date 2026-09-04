@@ -23,9 +23,9 @@ import { mimeTypeFor, normalizeProjectPath } from './paths.js';
 import { readSourceArchive } from './zip.js';
 
 type Queryable = Pick<DatabasePool, 'query'> | Pick<DatabaseClient, 'query'>;
-type Access = { id: string; role: ProjectRole; deleted_at: Date | null };
+export type Access = { id: string; role: ProjectRole; deleted_at: Date | null };
 
-async function requireProject(queryable: Queryable, projectId: string, userId: string, includeDeleted = false): Promise<Access> {
+export async function requireProject(queryable: Queryable, projectId: string, userId: string, includeDeleted = false): Promise<Access> {
   const result = await queryable.query<Access>(`SELECT p.id, pm.role, p.deleted_at
     FROM projects p JOIN project_members pm ON pm.project_id = p.id
     WHERE p.id = $1 AND pm.user_id = $2`, [projectId, userId]);

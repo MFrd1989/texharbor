@@ -35,6 +35,22 @@ export const updateFileSchema = z.object({
 
 export const invitationSchema = z.object({ email: emailSchema, role: z.enum(['editor', 'viewer']) });
 export const memberRoleSchema = z.object({ role: z.enum(['editor', 'viewer']) });
+const relativePositionSchema = z.string().min(1).max(2048).regex(/^[A-Za-z0-9+/=_-]+$/, 'Invalid source position');
+export const commentAnchorSchema = z.object({
+  start: relativePositionSchema,
+  end: relativePositionSchema,
+  quote: z.string().max(1000),
+});
+export const createCommentThreadSchema = z.object({
+  fileId: z.string().uuid(),
+  body: z.string().trim().min(1).max(10000),
+  anchor: commentAnchorSchema,
+});
+export const createCommentReplySchema = z.object({
+  body: z.string().trim().min(1).max(10000),
+  parentCommentId: z.string().uuid().optional(),
+});
+export const updateCommentThreadSchema = z.object({ status: z.enum(['open', 'resolved']) });
 
 export type UserDto = { id: string; name: string; email: string; createdAt: string };
 export type ProjectRole = 'owner' | 'editor' | 'viewer';
@@ -70,4 +86,29 @@ export type InvitationDto = {
   status: 'pending' | 'accepted' | 'rejected' | 'revoked' | 'expired';
   expiresAt: string;
   createdAt: string;
+};
+export type CommentAnchorDto = z.infer<typeof commentAnchorSchema>;
+export type CommentDto = {
+  id: string;
+  authorId: string;
+  authorName: string;
+  parentCommentId: string | null;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+export type CommentThreadDto = {
+  id: string;
+  projectId: string;
+  fileId: string;
+  filePath: string;
+  createdBy: string;
+  anchor: CommentAnchorDto;
+  status: 'open' | 'resolved';
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  comments: CommentDto[];
 };

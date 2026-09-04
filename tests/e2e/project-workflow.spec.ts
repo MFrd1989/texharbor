@@ -132,6 +132,34 @@ test('invites a separate user and enforces role changes and revocation', async (
   await invitee.keyboard.type('\nEdit from invited account');
   await expect(page.locator('.cm-content')).toContainText('Edit from invited account');
 
+  await page.getByRole('button', { name: 'Comments', exact: true }).click();
+  await page.getByRole('button', { name: '＋ New comment' }).click();
+  await page.getByRole('textbox', { name: 'Comment', exact: true }).fill('Please cite this section.');
+  await page.locator('.comment-compose').getByRole('button', { name: 'Comment' }).click();
+  await expect(page.getByText('Please cite this section.')).toBeVisible();
+  await invitee.getByRole('button', { name: 'Comments', exact: true }).click();
+  await expect(invitee.getByText('Please cite this section.')).toBeVisible();
+  await invitee.getByLabel(/Reply to comment/).fill('Citation added.');
+  await invitee.getByRole('button', { name: 'Send' }).click();
+  await expect(invitee.getByText('Citation added.')).toBeVisible();
+  await page.getByRole('button', { name: 'Refresh comments' }).click();
+  await expect(page.getByText('Citation added.')).toBeVisible();
+  await page.getByRole('button', { name: 'Resolve' }).click();
+  await expect(page.getByText('Please cite this section.')).not.toBeVisible();
+  await page.getByLabel('Resolved').check();
+  await expect(page.getByText('Please cite this section.')).toBeVisible();
+  await page.getByRole('button', { name: 'Reopen' }).click();
+  await page.getByRole('button', { name: 'Close comments' }).click();
+  await invitee.getByRole('button', { name: 'Close comments' }).click();
+  await page.reload();
+  await expect(page.getByText('● Saved', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Comments', exact: true }).click();
+  await expect(page.getByText('Please cite this section.')).toBeVisible();
+  await expect(page.getByText('Citation added.')).toBeVisible();
+  await page.getByRole('button', { name: '/main.tex' }).click();
+  await expect(page.locator('.cm-content')).toBeFocused();
+  await page.getByRole('button', { name: 'Close comments' }).click();
+
   await page.getByRole('button', { name: 'Share', exact: true }).click();
   await page.getByLabel('Role for Invited Editor').selectOption('viewer');
   await expect(invitee.locator('.cm-content')).toHaveAttribute('aria-readonly', 'true', { timeout: 15_000 });
@@ -148,4 +176,9 @@ test('invites a separate user and enforces role changes and revocation', async (
   const revokedStatus = await invitee.evaluate(async (id) => (await fetch(`/api/projects/${id}`)).status, projectId);
   expect(revokedStatus).toBe(404);
   await inviteeContext.close();
+  await page.getByRole('button', { name: 'Close sharing' }).click();
+  await page.getByRole('button', { name: 'Comments', exact: true }).click();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('button', { name: 'Delete thread' }).click();
+  await expect(page.getByText('Please cite this section.')).not.toBeVisible();
 });

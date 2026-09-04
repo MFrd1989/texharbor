@@ -4,7 +4,7 @@ LaTeX Workspace is a self-hosted collaborative LaTeX platform with its own user 
 
 ## Current milestone
 
-The current vertical slices provide local accounts, secure server sessions, server-owned projects, rename/duplicate, project trash/restore/permanent deletion, nested files, a CodeMirror source workspace, and validated Overleaf-style ZIP imports with binary assets. Text documents use Yjs through an authenticated Hocuspocus WebSocket endpoint, with PostgreSQL persistence, IndexedDB offline recovery, live presence, and remote cursor support. Email-bound invitation links, owner/editor/viewer roles, live role changes, and revocation are enforced by the API and collaboration server. Compilation, PDF output, comments, history, and Google Drive backups remain later end-to-end slices.
+The current vertical slices provide local accounts, secure server sessions, server-owned projects, rename/duplicate, project trash/restore/permanent deletion, nested files, a CodeMirror source workspace, and validated Overleaf-style ZIP imports with binary assets. Text documents use Yjs through an authenticated Hocuspocus WebSocket endpoint, with PostgreSQL persistence, IndexedDB offline recovery, live presence, and remote cursor support. Email-bound invitation links, owner/editor/viewer roles, live role changes, and revocation are enforced by the API and collaboration server. Persistent comment threads support replies, resolve/reopen, deletion, and Yjs-relative source anchors. Compilation, PDF output, history, and Google Drive backups remain later end-to-end slices.
 
 ## Development
 

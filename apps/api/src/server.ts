@@ -8,6 +8,7 @@ import Fastify from 'fastify';
 import { createPool, migrate } from '@texlyre/database';
 import { loadConfig } from './config.js';
 import { attachCollaborationServer } from './collaboration.js';
+import { registerCommentRoutes } from './comments.js';
 import { HttpError, sendError } from './http.js';
 import { registerRoutes } from './routes.js';
 
@@ -31,6 +32,7 @@ app.setErrorHandler((error, _request, reply) => sendError(reply, error));
 await migrate(pool, path.resolve(config.migrationsDirectory));
 const collaboration = attachCollaborationServer(app.server, pool, config.sessionSecret);
 await registerRoutes(app, pool, config, collaboration);
+await registerCommentRoutes(app, pool);
 
 if (config.isProduction) {
   await app.register(fastifyStatic, { root: path.resolve(config.webDirectory), wildcard: false });
