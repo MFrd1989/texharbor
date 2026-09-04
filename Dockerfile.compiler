@@ -2,6 +2,7 @@ FROM debian:bookworm-slim
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     biber latexmk texlive-bibtex-extra texlive-fonts-recommended texlive-latex-base \
     texlive-latex-extra texlive-latex-recommended texlive-luatex texlive-xetex \
+    texlive-science \
     && rm -rf /var/lib/apt/lists/*
 COPY docker/compiler/compile.sh /compiler/compile.sh
 RUN chmod 0555 /compiler/compile.sh

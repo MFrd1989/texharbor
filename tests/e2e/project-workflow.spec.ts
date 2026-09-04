@@ -28,7 +28,7 @@ test('creates an account, keeps a persistent session, and durably saves source',
   const editor = page.locator('.cm-content');
   await editor.click();
   await page.keyboard.press('Control+A');
-  await page.keyboard.type('\\documentclass{article}\n\\begin{document}\nDurable source\n\\end{document}');
+  await page.keyboard.type('\\documentclass{article}\n\\usepackage{algorithm}\n\\usepackage{algorithmic}\n\\begin{document}\nDurable source\n\\begin{algorithm}\n\\begin{algorithmic}\n\\STATE Compile this project.\n\\end{algorithmic}\n\\end{algorithm}\n\\end{document}');
   await expect(page.getByText('● Saved', { exact: true })).toBeVisible({ timeout: 10_000 });
 
   await page.reload();
