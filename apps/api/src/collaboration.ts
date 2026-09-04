@@ -15,7 +15,12 @@ function parseDocumentName(documentName: string): { projectId: string; fileId: s
   return { projectId: match[1], fileId: match[2] };
 }
 
-export function attachCollaborationServer(httpServer: HttpServer, pool: DatabasePool, secret: string): { destroy: () => Promise<void> } {
+export type CollaborationServer = {
+  disconnectProject: (projectId: string) => Promise<void>;
+  destroy: () => Promise<void>;
+};
+
+export function attachCollaborationServer(httpServer: HttpServer, pool: DatabasePool, secret: string): CollaborationServer {
   const hocuspocus = new Hocuspocus<CollaborationContext>({
     name: 'texlyre-collaboration',
     debounce: 1_000,
@@ -89,6 +94,12 @@ export function attachCollaborationServer(httpServer: HttpServer, pool: Database
   };
   httpServer.on('upgrade', upgrade);
   return {
+    disconnectProject: async (projectId) => {
+      hocuspocus.flushPendingStores();
+      const files = await pool.query<{ document_name: string }>(`SELECT project_id::text || ':' || id::text AS document_name
+        FROM project_files WHERE project_id = $1 AND kind = 'file' AND NOT is_binary`, [projectId]);
+      for (const file of files.rows) hocuspocus.closeConnections(file.document_name);
+    },
     destroy: async () => {
       httpServer.off('upgrade', upgrade);
       hocuspocus.flushPendingStores();

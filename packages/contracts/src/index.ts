@@ -33,6 +33,9 @@ export const updateFileSchema = z.object({
   content: z.string().max(5_000_000).optional(),
 }).refine((value) => value.path !== undefined || value.content !== undefined, 'No changes supplied');
 
+export const invitationSchema = z.object({ email: emailSchema, role: z.enum(['editor', 'viewer']) });
+export const memberRoleSchema = z.object({ role: z.enum(['editor', 'viewer']) });
+
 export type UserDto = { id: string; name: string; email: string; createdAt: string };
 export type ProjectRole = 'owner' | 'editor' | 'viewer';
 export type ProjectDto = {
@@ -52,4 +55,19 @@ export type FileDto = {
   size: number;
   isBinary: boolean;
   updatedAt: string;
+};
+export type CollaboratorDto = {
+  id: string;
+  name: string;
+  email: string;
+  role: ProjectRole;
+  joinedAt: string;
+};
+export type InvitationDto = {
+  id: string;
+  email: string;
+  role: Exclude<ProjectRole, 'owner'>;
+  status: 'pending' | 'accepted' | 'rejected' | 'revoked' | 'expired';
+  expiresAt: string;
+  createdAt: string;
 };

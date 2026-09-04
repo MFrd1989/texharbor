@@ -4,7 +4,7 @@ import { EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import type { UserDto } from '@texlyre/contracts';
+import type { ProjectRole, UserDto } from '@texlyre/contracts';
 import { yCollab } from 'y-codemirror.next';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import * as Y from 'yjs';
@@ -18,6 +18,9 @@ type Props = {
   readOnly: boolean;
   onStatus: (status: string) => void;
   onPresence: (collaborators: Collaborator[]) => void;
+  onRole: (role: ProjectRole) => void;
+  onAccessLost: (message: string) => void;
+  onConnectionReset: () => void;
 };
 
 function colorFor(value: string): string {
@@ -27,12 +30,18 @@ function colorFor(value: string): string {
   return colors[Math.abs(hash) % colors.length]!;
 }
 
-export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPresence }: Props) {
+export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPresence, onRole, onAccessLost, onConnectionReset }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const statusHandler = useRef(onStatus);
   const presenceHandler = useRef(onPresence);
+  const roleHandler = useRef(onRole);
+  const accessHandler = useRef(onAccessLost);
+  const resetHandler = useRef(onConnectionReset);
   statusHandler.current = onStatus;
   presenceHandler.current = onPresence;
+  roleHandler.current = onRole;
+  accessHandler.current = onAccessLost;
+  resetHandler.current = onConnectionReset;
 
   useEffect(() => {
     if (!host.current) return;
@@ -44,12 +53,28 @@ export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPres
       url: websocketUrl,
       name: `${projectId}:${fileId}`,
       document,
-      token: async () => (await api<{ token: string }>(`/api/projects/${projectId}/files/${fileId}/collaboration-token`, { method: 'POST' })).token,
+      token: async () => {
+        try {
+          const credentials = await api<{ token: string; role: ProjectRole }>(`/api/projects/${projectId}/files/${fileId}/collaboration-token`, { method: 'POST' });
+          roleHandler.current(credentials.role);
+          return credentials.token;
+        } catch (cause) {
+          accessHandler.current(cause instanceof Error ? cause.message : 'Project access was removed');
+          throw cause;
+        }
+      },
       flushDelay: 120,
       onStatus: ({ status }) => statusHandler.current(status === 'connected' ? 'Syncing…' : status === 'connecting' ? 'Reconnecting…' : 'Offline'),
       onSynced: ({ state }) => { if (state) statusHandler.current('Saved'); },
       onUnsyncedChanges: ({ number }) => statusHandler.current(number === 0 ? 'Saved' : 'Syncing…'),
       onAuthenticationFailed: ({ reason }) => statusHandler.current(reason || 'Access denied'),
+      onClose: ({ event }) => {
+        if (event.reason !== 'Reset Connection') return;
+        void api<{ project: { role: ProjectRole } }>(`/api/projects/${projectId}`).then(({ project }) => {
+          roleHandler.current(project.role);
+          resetHandler.current();
+        }).catch((cause) => accessHandler.current(cause instanceof Error ? cause.message : 'Project access was removed'));
+      },
       onAwarenessChange: ({ states }) => {
         presenceHandler.current(states.map((state) => ({
           clientId: Number(state.clientId),
@@ -83,4 +108,3 @@ export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPres
 
   return <div className="editor-host" ref={host} />;
 }
-

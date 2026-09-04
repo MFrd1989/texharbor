@@ -29,8 +29,8 @@ app.addHook('onRequest', async (request) => {
 app.setErrorHandler((error, _request, reply) => sendError(reply, error));
 
 await migrate(pool, path.resolve(config.migrationsDirectory));
-await registerRoutes(app, pool, config);
 const collaboration = attachCollaborationServer(app.server, pool, config.sessionSecret);
+await registerRoutes(app, pool, config, collaboration);
 
 if (config.isProduction) {
   await app.register(fastifyStatic, { root: path.resolve(config.webDirectory), wildcard: false });

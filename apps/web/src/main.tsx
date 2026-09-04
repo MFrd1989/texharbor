@@ -4,6 +4,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } 
 import type { FileDto, ProjectDto, UserDto } from '@texlyre/contracts';
 import { api } from './api';
 import { CodeEditor, type Collaborator } from './CodeEditor';
+import { SharingDialog } from './SharingDialog';
 import './styles.css';
 
 type AuthResponse = { user: UserDto | null };
@@ -62,7 +63,7 @@ function Dashboard({ user, onLogout }: { user: UserDto; onLogout: () => void }) 
   const duplicate = async (id: string) => { try { await api(`/api/projects/${id}/duplicate`, { method: 'POST' }); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not duplicate project'); } };
   const importZip = async (event: React.ChangeEvent<HTMLInputElement>) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (!file) return; setImporting(true); setError(''); try { const form = new FormData(); form.append('archive', file); await api('/api/projects/import', { method: 'POST', body: form }); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not import ZIP'); } finally { setImporting(false); } };
   return <div className="app-shell">
-    <aside className="sidebar"><Link to="/" className="brand"><span className="mini-mark">TX</span><strong>TeXlyre</strong></Link><nav>
+    <aside className="sidebar"><Link to="/" className="brand"><span className="mini-mark">TX</span><strong>LaTeX Workspace</strong></Link><nav>
       <button className={view === 'projects' ? 'active' : ''} onClick={() => setView('projects')}>▦ <span>My projects</span></button>
       <button className={view === 'trash' ? 'active' : ''} onClick={() => setView('trash')}>♲ <span>Trash</span></button>
     </nav><div className="sidebar-user"><span>{user.name.slice(0, 1).toUpperCase()}</span><div><strong>{user.name}</strong><small>{user.email}</small></div><button aria-label="Sign out" onClick={onLogout}>↪</button></div></aside>
@@ -70,7 +71,7 @@ function Dashboard({ user, onLogout }: { user: UserDto; onLogout: () => void }) 
       {error && <p className="error" role="alert">{error}</p>}
       <div className="project-head"><span>PROJECT</span><span>ROLE</span><span>LAST UPDATED</span><span>ACTIONS</span></div>
       <section className="project-list">{projects.length === 0 ? <div className="empty"><div>∑</div><h2>{view === 'trash' ? 'Trash is empty' : 'No projects yet'}</h2><p>{view === 'trash' ? 'Deleted projects will appear here.' : 'Create a project and begin with main.tex.'}</p></div> : projects.map((project) => <article className="project-row" key={project.id}>
-        <Link to={`/projects/${project.id}`} className="project-title"><span className="file-icon">T<sub>E</sub>X</span><div><strong>{project.name}</strong><small>{project.description || 'No description'}</small></div></Link><span className="role">{project.role}</span><time>{new Date(project.updatedAt).toLocaleString()}</time><div className="row-actions">{view === 'trash' ? <><button onClick={() => void restore(project.id)}>Restore</button><button className="danger" onClick={() => void permanentlyDelete(project.id)}>Delete</button></> : <><Link className="button" to={`/projects/${project.id}`}>Open</Link><button onClick={() => void duplicate(project.id)}>Duplicate</button>{project.role !== 'viewer' && <button onClick={() => void rename(project)}>Rename</button>}{project.role === 'owner' && <button className="danger" onClick={() => void trash(project.id)}>Trash</button>}</>}</div>
+        <Link to={`/projects/${project.id}`} className="project-title"><span className="file-icon">T<sub>E</sub>X</span><div><strong>{project.name}</strong><small>{project.description || 'No description'}</small></div></Link><span className="role">{project.role}</span><time>{new Date(project.updatedAt).toLocaleString()}</time><div className="row-actions">{view === 'trash' ? <><button onClick={() => void restore(project.id)}>Restore</button><button className="danger" onClick={() => void permanentlyDelete(project.id)}>Delete</button></> : <><Link className="button" to={`/projects/${project.id}`}>Open</Link>{project.role === 'owner' && <><button onClick={() => void duplicate(project.id)}>Duplicate</button><button onClick={() => void rename(project)}>Rename</button><button className="danger" onClick={() => void trash(project.id)}>Trash</button></>}</>}</div>
       </article>)}</section>
     </main>
     {showCreate && <div className="dialog-backdrop" role="presentation"><form className="dialog" onSubmit={create}><h2>New project</h2><label>Project name<input name="name" defaultValue="Untitled paper" autoFocus required maxLength={200} /></label><label>Description<textarea name="description" rows={3} maxLength={2000} /></label><div><button type="button" onClick={() => setShowCreate(false)}>Cancel</button><button className="primary">Create project</button></div></form></div>}
@@ -85,6 +86,8 @@ function Workspace({ user }: { user: UserDto }) {
   const [project, setProject] = useState<ProjectDetail | null>(null); const [files, setFiles] = useState<FileDto[]>([]);
   const [selected, setSelected] = useState<FileContent | null>(null); const [status, setStatus] = useState('Connecting…'); const [error, setError] = useState('');
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [showSharing, setShowSharing] = useState(false);
+  const [connectionEpoch, setConnectionEpoch] = useState(0);
   const loadFiles = useCallback(async () => setFiles((await api<{ files: FileDto[] }>(`/api/projects/${projectId}/files`)).files), [projectId]);
   useEffect(() => { void Promise.all([api<{ project: ProjectDetail }>(`/api/projects/${projectId}`).then((r) => setProject(r.project)), loadFiles()]).catch((cause) => setError(cause instanceof Error ? cause.message : 'Could not open project')); }, [projectId, loadFiles]);
   useEffect(() => { if (!selected && files.length) { const main = files.find((file) => file.path === project?.mainFilePath) || files.find((file) => file.kind === 'file'); if (main) void openFile(main); } }, [files, project, selected]);
@@ -93,10 +96,29 @@ function Workspace({ user }: { user: UserDto }) {
   const renameNode = async (file: FileDto) => { const nextPath = prompt('New path:', file.path)?.trim(); if (!nextPath || nextPath === file.path) return; try { await api(`/api/projects/${projectId}/files/${file.id}`, { method: 'PATCH', body: JSON.stringify({ path: nextPath }) }); if (selected?.id === file.id) setSelected(null); await loadFiles(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not rename item'); } };
   const deleteNode = async (file: FileDto) => { if (!confirm(`Delete ${file.path}${file.kind === 'directory' ? ' and everything inside it' : ''}?`)) return; try { await api(`/api/projects/${projectId}/files/${file.id}`, { method: 'DELETE' }); if (selected?.id === file.id) setSelected(null); await loadFiles(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not delete item'); } };
   if (error && !project) return <main className="fatal"><h1>Could not open project</h1><p>{error}</p><button onClick={() => navigate('/')}>Back to projects</button></main>;
-  return <div className="workspace"><header className="workspace-header"><button className="back" onClick={() => navigate('/')}>← Projects</button><div><strong>{project?.name || 'Loading…'}</strong><span>{project?.compiler}</span></div><div className="presence" aria-label="Online collaborators">{collaborators.map((collaborator) => <span key={collaborator.clientId} title={`${collaborator.name} · online`} style={{ backgroundColor: collaborator.color }}>{collaborator.name.slice(0, 1).toUpperCase()}</span>)}</div><span className={`save-status ${['Access denied', 'Offline'].includes(status) ? 'failed' : ''}`}>● {status}</span></header>
+  return <div className="workspace"><header className="workspace-header"><button className="back" onClick={() => navigate('/')}>← Projects</button><div><strong>{project?.name || 'Loading…'}</strong><span>{project?.compiler}</span></div>{project && <button className="share-button" onClick={() => setShowSharing(true)}>{project.role === 'owner' ? 'Share' : 'Collaborators'}</button>}<div className="presence" aria-label="Online collaborators">{collaborators.map((collaborator) => <span key={collaborator.clientId} title={`${collaborator.name} · online`} style={{ backgroundColor: collaborator.color }}>{collaborator.name.slice(0, 1).toUpperCase()}</span>)}</div><span className={`save-status ${['Access denied', 'Offline'].includes(status) ? 'failed' : ''}`}>● {status}</span></header>
     <aside className="file-panel"><div className="panel-title"><strong>Files</strong>{project?.role !== 'viewer' && <span><button title="New file" onClick={() => void createNode('file')}>＋</button><button title="New folder" onClick={() => void createNode('directory')}>▱</button></span>}</div><div className="file-tree">{files.map((file) => <div className="tree-row" key={file.id}><button className={selected?.id === file.id ? 'selected' : ''} style={{ paddingLeft: `${12 + (file.path.split('/').length - 2) * 16}px` }} onClick={() => void openFile(file)}>{file.kind === 'directory' ? '▸' : file.isBinary ? '◇' : '▤'} {file.path.split('/').at(-1)}</button>{project?.role !== 'viewer' && <span><button title={`Rename ${file.path}`} onClick={() => void renameNode(file)}>✎</button><button title={`Delete ${file.path}`} onClick={() => void deleteNode(file)}>×</button></span>}</div>)}</div></aside>
-    <main className="source-panel"><div className="tabbar"><span>{selected?.path || 'Select a file'}</span>{error && <span className="inline-error">{error}</span>}</div>{selected ? <CodeEditor key={selected.id} projectId={projectId} fileId={selected.id} user={user} readOnly={project?.role === 'viewer'} onStatus={setStatus} onPresence={setCollaborators} /> : <div className="editor-empty">Select a source file</div>}</main>
+    <main className="source-panel"><div className="tabbar"><span>{selected?.path || 'Select a file'}</span>{error && <span className="inline-error">{error}</span>}</div>{selected ? <CodeEditor key={`${selected.id}:${connectionEpoch}`} projectId={projectId} fileId={selected.id} user={user} readOnly={project?.role === 'viewer'} onStatus={setStatus} onPresence={setCollaborators} onRole={(role) => setProject((current) => current && current.role !== role ? { ...current, role } : current)} onAccessLost={(message) => { setError(message); setProject(null); }} onConnectionReset={() => setConnectionEpoch((epoch) => epoch + 1)} /> : <div className="editor-empty">Select a source file</div>}</main>
+    {showSharing && project && <SharingDialog projectId={projectId} role={project.role} onClose={() => setShowSharing(false)} />}
   </div>;
+}
+
+type InvitationDetail = { projectName: string; inviterName: string; role: 'editor' | 'viewer'; expiresAt: string };
+
+function InvitationPage({ user }: { user: UserDto }) {
+  const { token = '' } = useParams(); const navigate = useNavigate();
+  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  const [invitation, setInvitation] = useState<InvitationDetail | null>(null);
+  useEffect(() => { void api<{ invitation: InvitationDetail }>(`/api/invitations/${encodeURIComponent(token)}`).then((result) => setInvitation(result.invitation)).catch((cause) => setError(cause instanceof Error ? cause.message : 'Could not load invitation')); }, [token]);
+  const accept = async () => {
+    setBusy(true); setError('');
+    try {
+      const result = await api<{ projectId: string }>(`/api/invitations/${encodeURIComponent(token)}/accept`, { method: 'POST' });
+      navigate(`/projects/${result.projectId}`, { replace: true });
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not accept invitation'); setBusy(false); }
+  };
+  const reject = async () => { setBusy(true); setError(''); try { await api(`/api/invitations/${encodeURIComponent(token)}/reject`, { method: 'POST' }); navigate('/', { replace: true }); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not reject invitation'); setBusy(false); } };
+  return <main className="invitation-page"><section className="invitation-card"><p className="eyebrow">PROJECT INVITATION</p><h1>{invitation ? `Join ${invitation.projectName}` : 'Join a shared project'}</h1>{invitation && <p><strong>{invitation.inviterName}</strong> invited you as {invitation.role === 'editor' ? 'an editor' : 'a viewer'}.</p>}<p>You are signed in as <strong>{user.email}</strong>. Invitations can only be accepted by the email address they were created for.</p>{error && <p className="error" role="alert">{error}</p>}<div><button disabled={busy || !invitation} onClick={() => void reject()}>Decline</button><button className="primary" disabled={busy || !invitation} onClick={() => void accept()}>{busy ? 'Please wait…' : 'Accept invitation'}</button></div></section></main>;
 }
 
 function App() {
@@ -105,7 +127,7 @@ function App() {
   if (user === undefined) return <div className="loading">Loading workspace…</div>;
   if (!user) return <AuthPage onAuthenticated={setUser} />;
   const logout = async () => { await api('/api/auth/logout', { method: 'POST' }); setUser(null); };
-  return <Routes><Route path="/" element={<Dashboard user={user} onLogout={() => void logout()} />} /><Route path="/projects/:projectId" element={<Workspace user={user} />} /><Route path="*" element={<Navigate to="/" />} /></Routes>;
+  return <Routes><Route path="/" element={<Dashboard user={user} onLogout={() => void logout()} />} /><Route path="/projects/:projectId" element={<Workspace user={user} />} /><Route path="/invitations/:token" element={<InvitationPage user={user} />} /><Route path="*" element={<Navigate to="/" />} /></Routes>;
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);

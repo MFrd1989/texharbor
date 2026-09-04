@@ -81,3 +81,71 @@ test('synchronizes CRDT edits and awareness between simultaneous editors', async
   await peer.close();
   await expect(page.locator('.presence > span')).toHaveCount(1);
 });
+
+test('invites a separate user and enforces role changes and revocation', async ({ page, browser }) => {
+  const stamp = Date.now();
+  const inviteeEmail = `invited-${stamp}@example.test`;
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New here? Create an account' }).click();
+  await page.getByLabel('Display name').fill('Project Owner');
+  await page.getByLabel('Email address').fill(`owner-${stamp}@example.test`);
+  await page.getByLabel('Password').fill('owner-sharing-password');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await page.getByRole('button', { name: '＋ New project' }).click();
+  await page.getByLabel('Project name').fill('Shared Research');
+  await page.locator('.dialog').getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('link', { name: /Shared Research/ }).click();
+  await expect(page.getByText('● Saved', { exact: true })).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await page.getByLabel('Email address').fill(inviteeEmail);
+  await page.getByLabel('Role').selectOption('editor');
+  await page.getByRole('button', { name: 'Create invitation' }).click();
+  const invitationUrl = await page.getByLabel('Invitation link').inputValue();
+  await page.getByRole('button', { name: 'Close sharing' }).click();
+
+  const intruderContext = await browser.newContext();
+  const intruder = await intruderContext.newPage();
+  await intruder.goto(new URL(invitationUrl).pathname);
+  await intruder.getByRole('button', { name: 'New here? Create an account' }).click();
+  await intruder.getByLabel('Display name').fill('Wrong Recipient');
+  await intruder.getByLabel('Email address').fill(`intruder-${stamp}@example.test`);
+  await intruder.getByLabel('Password').fill('intruder-sharing-password');
+  await intruder.getByRole('button', { name: 'Create account' }).click();
+  await expect(intruder.getByRole('alert')).toContainText('different email address');
+  await intruderContext.close();
+
+  const inviteeContext = await browser.newContext();
+  const invitee = await inviteeContext.newPage();
+  await invitee.goto(new URL(invitationUrl).pathname);
+  await invitee.getByRole('button', { name: 'New here? Create an account' }).click();
+  await invitee.getByLabel('Display name').fill('Invited Editor');
+  await invitee.getByLabel('Email address').fill(inviteeEmail);
+  await invitee.getByLabel('Password').fill('invitee-sharing-password');
+  await invitee.getByRole('button', { name: 'Create account' }).click();
+  await invitee.getByRole('button', { name: 'Accept invitation' }).click();
+  await expect(invitee.getByText('● Saved', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.presence > span')).toHaveCount(2);
+
+  await invitee.locator('.cm-content').click();
+  await invitee.keyboard.press('Control+End');
+  await invitee.keyboard.type('\nEdit from invited account');
+  await expect(page.locator('.cm-content')).toContainText('Edit from invited account');
+
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await page.getByLabel('Role for Invited Editor').selectOption('viewer');
+  await expect(invitee.locator('.cm-content')).toHaveAttribute('aria-readonly', 'true', { timeout: 15_000 });
+  const projectId = new URL(invitee.url()).pathname.split('/').at(-1)!;
+  const filesResponse = await invitee.evaluate(async (id) => (await fetch(`/api/projects/${id}/files`)).json(), projectId) as { files: Array<{ id: string }> };
+  const forbiddenStatus = await invitee.evaluate(async ({ id, fileId }) => (await fetch(`/api/projects/${id}/files/${fileId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: 'forbidden' }) })).status, { id: projectId, fileId: filesResponse.files[0]!.id });
+  expect(forbiddenStatus).toBe(403);
+  const renameStatus = await invitee.evaluate(async (id) => (await fetch(`/api/projects/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Unauthorized rename' }) })).status, projectId);
+  expect(renameStatus).toBe(403);
+
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('button', { name: 'Remove' }).click();
+  await expect(invitee.getByRole('heading', { name: 'Could not open project' })).toBeVisible({ timeout: 15_000 });
+  const revokedStatus = await invitee.evaluate(async (id) => (await fetch(`/api/projects/${id}`)).status, projectId);
+  expect(revokedStatus).toBe(404);
+  await inviteeContext.close();
+});
