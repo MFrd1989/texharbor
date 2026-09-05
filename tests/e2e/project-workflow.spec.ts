@@ -67,9 +67,12 @@ test('imports an Overleaf-style ZIP with nested files and binary assets', async 
   await page.getByRole('button', { name: 'Create account' }).click();
 
   const zip = new JSZip();
-  zip.file('paper/main.tex', '\\documentclass{article}\n\\begin{document}\nImported source\n\\end{document}');
+  zip.file('paper/main.tex', '\\documentclass{article}\n\\usepackage{graphicx}\n\\begin{document}\nImported source\n\\includegraphics[width=2cm]{figures/plot.eps}\n\\end{document}');
   zip.file('paper/chapters/introduction.tex', 'Nested chapter');
+  zip.file('paper/chapters/sections/results.tex', 'Deeply nested chapter');
+  zip.folder('paper/empty');
   zip.file('paper/figures/pixel.png', Uint8Array.from([137, 80, 78, 71, 0]));
+  zip.file('paper/figures/plot.eps', '%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 120 80\nnewpath 10 10 moveto 110 10 lineto 110 70 lineto 10 70 lineto closepath 0.15 0.55 0.35 setrgbcolor fill\nshowpage\n%%EOF\n');
   const buffer = await zip.generateAsync({ type: 'nodebuffer' });
   await page.locator('input[type="file"]').setInputFiles({ name: 'overleaf-paper.zip', mimeType: 'application/zip', buffer });
 
@@ -77,8 +80,20 @@ test('imports an Overleaf-style ZIP with nested files and binary assets', async 
   await page.getByRole('link', { name: /overleaf-paper/ }).click();
   await expect(page.getByRole('button', { name: /main\.tex/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /introduction\.tex/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /results\.tex/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /plot\.eps/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /pixel\.png/ })).toBeVisible();
   await expect(page.locator('.cm-content')).toContainText('Imported source');
+  const paths = await page.locator('.tree-row').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-path')));
+  expect(paths).toEqual(['/chapters', '/chapters/sections', '/chapters/sections/results.tex', '/chapters/introduction.tex', '/empty', '/figures', '/figures/pixel.png', '/figures/plot.eps', '/main.tex']);
+  await page.locator('.tree-row[data-path="/chapters"] > button').click();
+  await expect(page.getByRole('button', { name: /introduction\.tex/ })).not.toBeVisible();
+  await page.locator('.tree-row[data-path="/chapters"] > button').click();
+  await expect(page.getByRole('button', { name: /introduction\.tex/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Compile', exact: true }).click();
+  await expect(page.locator('iframe[title="Compiled PDF"]')).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Logs' }).click();
+  await expect(page.locator('.build-log')).toContainText(/plot-eps-conve\s*rted-to\.pdf/);
 });
 
 test('synchronizes CRDT edits and awareness between simultaneous editors', async ({ page, context }) => {

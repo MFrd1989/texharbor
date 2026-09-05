@@ -62,6 +62,17 @@ export async function readSourceArchive(buffer: Buffer): Promise<ImportedFile[]>
   const seen = new Set<string>();
   let expandedBytes = 0;
 
+  for (const entry of Object.values(zip.files).filter((candidate) => candidate.dir)) {
+    const unsafeName = String(entry.unsafeOriginalName || entry.name).replaceAll('\\', '/').replace(/^\.\//, '').replace(/\/$/, '');
+    if (!unsafeName || unsafeName.startsWith('__MACOSX/')) continue;
+    if (unsafeName.startsWith('/') || /^[A-Za-z]:\//.test(unsafeName)) throw new HttpError(400, 'The ZIP archive contains an unsafe absolute path');
+    const relativeName = commonRoot && (unsafeName === commonRoot || unsafeName.startsWith(`${commonRoot}/`)) ? unsafeName.slice(commonRoot.length + 1) : unsafeName;
+    if (!relativeName) continue;
+    const directory = normalizeProjectPath(relativeName);
+    const segments = directory.slice(1).split('/');
+    for (let depth = 1; depth <= segments.length; depth += 1) directories.add(`/${segments.slice(0, depth).join('/')}`);
+  }
+
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]!;
     const unsafeName = unsafeNames[index]!;

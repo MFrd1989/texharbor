@@ -18,7 +18,7 @@ mkdir -p /tmp/source /tmp/output "$TEXMFVAR" "$TEXMFCONFIG" "$TEXMFCACHE"
 cp -R /input/. /tmp/source/
 cd /tmp/source
 set +e
-latexmk -f "$engine_flag" -interaction=nonstopmode -file-line-error -synctex=1 -no-shell-escape -outdir=/tmp/output "./$main_file" > /output/build.log 2>&1
+latexmk -f "$engine_flag" -interaction=nonstopmode -file-line-error -synctex=1 -shell-restricted -outdir=/tmp/output "./$main_file" > /output/build.log 2>&1
 status=$?
 set -e
 

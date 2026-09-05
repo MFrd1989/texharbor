@@ -17,5 +17,5 @@ export function normalizeProjectPath(input: string): string {
 
 export function mimeTypeFor(projectPath: string): string {
   const extension = path.posix.extname(projectPath).toLowerCase();
-  return ({ '.tex': 'text/x-tex', '.bib': 'text/x-bibtex', '.sty': 'text/x-tex', '.cls': 'text/x-tex', '.txt': 'text/plain', '.md': 'text/markdown', '.json': 'application/json', '.svg': 'image/svg+xml' } as Record<string, string>)[extension] || 'text/plain';
+  return ({ '.tex': 'text/x-tex', '.bib': 'text/x-bibtex', '.sty': 'text/x-tex', '.cls': 'text/x-tex', '.txt': 'text/plain', '.md': 'text/markdown', '.json': 'application/json', '.svg': 'image/svg+xml', '.eps': 'application/postscript' } as Record<string, string>)[extension] || 'text/plain';
 }

@@ -323,7 +323,7 @@ export async function registerRoutes(app: FastifyInstance, pool: DatabasePool, c
     const { projectId } = request.params as { projectId: string };
     await requireProject(pool, projectId, user.id);
     const result = await pool.query(`SELECT id, path, kind, mime_type AS "mimeType", size, is_binary AS "isBinary", updated_at AS "updatedAt"
-      FROM project_files WHERE project_id = $1 ORDER BY kind DESC, path`, [projectId]);
+      FROM project_files WHERE project_id = $1 ORDER BY path`, [projectId]);
     return { files: result.rows };
   });
 

@@ -7,9 +7,10 @@ describe('readSourceArchive', () => {
     const zip = new JSZip();
     zip.file('paper/main.tex', '\\documentclass{article}');
     zip.file('paper/chapters/intro.tex', 'Introduction');
+    zip.folder('paper/empty');
     zip.file('paper/figures/pixel.png', Uint8Array.from([137, 80, 78, 71, 0]));
     const files = await readSourceArchive(await zip.generateAsync({ type: 'nodebuffer' }));
-    expect(files.map((file) => file.path)).toEqual(['/chapters', '/figures', '/main.tex', '/chapters/intro.tex', '/figures/pixel.png']);
+    expect(files.map((file) => file.path)).toEqual(['/chapters', '/empty', '/figures', '/main.tex', '/chapters/intro.tex', '/figures/pixel.png']);
     expect(files.find((file) => file.path.endsWith('.png'))?.isBinary).toBe(true);
     expect(files.find((file) => file.path === '/main.tex')?.isBinary).toBe(false);
   });
