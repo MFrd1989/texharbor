@@ -67,7 +67,7 @@ test('imports an Overleaf-style ZIP with nested files and binary assets', async 
   await page.getByRole('button', { name: 'Create account' }).click();
 
   const zip = new JSZip();
-  zip.file('paper/main.tex', '\\documentclass{article}\n\\usepackage{graphicx}\n\\begin{document}\nImported source\n\\includegraphics[width=2cm]{figures/plot.eps}\n\\end{document}');
+  zip.file('paper/main.tex', '\\documentclass{article}\n\\usepackage{graphicx}\n\\begin{document}\nImported source\n\\includegraphics[width=2cm]{figures/plot.eps}\n\\newpage\nSecond PDF page\n\\end{document}');
   zip.file('paper/chapters/introduction.tex', 'Nested chapter');
   zip.file('paper/chapters/sections/results.tex', 'Deeply nested chapter');
   zip.folder('paper/empty');
@@ -93,6 +93,11 @@ test('imports an Overleaf-style ZIP with nested files and binary assets', async 
   await page.getByRole('button', { name: 'Compile', exact: true }).click();
   const pdfCanvas = page.getByLabel(/PDF page 1\. Click to open source/);
   await expect(pdfCanvas).toBeVisible({ timeout: 30_000 });
+  const pdfScroller = page.locator('.pdf-canvas-scroll');
+  await expect(pdfScroller.locator('.pdf-page')).toHaveCount(2);
+  expect(await pdfScroller.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  await pdfScroller.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await expect(page.getByRole('spinbutton', { name: 'PDF page' })).toHaveValue('2');
   await page.getByRole('button', { name: /introduction\.tex/ }).click();
   await expect(page.locator('.cm-content')).toContainText('Nested chapter');
   await page.getByRole('button', { name: 'Expand PDF' }).click();
@@ -243,4 +248,30 @@ test('invites a separate user and enforces role changes and revocation', async (
   page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Delete thread' }).click();
   await expect(page.getByText('Please cite this section.')).not.toBeVisible();
+});
+
+test('provides a mobile workspace without horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New here? Create an account' }).click();
+  await page.getByLabel('Display name').fill('Mobile Researcher');
+  await page.getByLabel('Email address').fill(`mobile-${Date.now()}@example.test`);
+  await page.getByLabel('Password').fill('mobile-end-to-end-password');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.getByRole('heading', { name: 'My projects' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.getByRole('button', { name: '＋ New project' }).click();
+  await page.getByLabel('Project name').fill('Mobile Paper');
+  await page.locator('.dialog').getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('link', { name: /Mobile Paper/ }).click();
+  await expect(page.getByRole('navigation', { name: 'Workspace panels' })).toBeVisible();
+  await expect(page.locator('.source-panel')).toBeVisible();
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await expect(page.locator('.file-panel')).toBeVisible();
+  await expect(page.locator('.source-panel')).toBeHidden();
+  await page.getByRole('button', { name: 'PDF', exact: true }).click();
+  await expect(page.locator('.build-panel')).toBeVisible();
+  await expect(page.locator('.file-panel')).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
