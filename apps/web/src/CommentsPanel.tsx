@@ -8,11 +8,12 @@ type Props = {
   selection: CommentAnchorDto | null;
   user: UserDto;
   role: ProjectRole;
+  composeRequest: number | null;
   onClose: () => void;
   onJump: (thread: CommentThreadDto) => void;
 };
 
-export function CommentsPanel({ projectId, fileId, selection, user, role, onClose, onJump }: Props) {
+export function CommentsPanel({ projectId, fileId, selection, user, role, composeRequest, onClose, onJump }: Props) {
   const [threads, setThreads] = useState<CommentThreadDto[]>([]);
   const [showResolved, setShowResolved] = useState(false);
   const [composing, setComposing] = useState(false);
@@ -23,6 +24,7 @@ export function CommentsPanel({ projectId, fileId, selection, user, role, onClos
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not load comments'); }
   }, [projectId]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (composeRequest) setComposing(true); }, [composeRequest]);
 
   const create = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

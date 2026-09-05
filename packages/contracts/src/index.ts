@@ -53,6 +53,11 @@ export const createCommentReplySchema = z.object({
   parentCommentId: z.string().uuid().optional(),
 });
 export const updateCommentThreadSchema = z.object({ status: z.enum(['open', 'resolved']) });
+export const synctexQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).max(10_000),
+  x: z.coerce.number().finite().min(0).max(20_000),
+  y: z.coerce.number().finite().min(0).max(20_000),
+});
 
 export type UserDto = { id: string; name: string; email: string; createdAt: string };
 export type ProjectRole = 'owner' | 'editor' | 'viewer';
@@ -128,4 +133,10 @@ export type CompileJobDto = {
   queuedAt: string;
   startedAt: string | null;
   completedAt: string | null;
+};
+export type SyncTexLocationDto = {
+  fileId: string;
+  path: string;
+  line: number;
+  column: number;
 };

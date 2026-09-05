@@ -34,7 +34,7 @@ test('creates an account, keeps a persistent session, and durably saves source',
   await page.reload();
   await expect(page.locator('.cm-content')).toContainText('Durable source');
   await page.getByRole('button', { name: 'Compile', exact: true }).click();
-  await expect(page.locator('iframe[title="Compiled PDF"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByLabel(/PDF page 1\. Click to open source/)).toBeVisible({ timeout: 30_000 });
   const projectId = new URL(page.url()).pathname.split('/').at(-1)!;
   const latestBuild = await page.evaluate(async (id) => {
     const response = await fetch(`/api/projects/${id}/compile`);
@@ -52,7 +52,7 @@ test('creates an account, keeps a persistent session, and durably saves source',
   await expect(editor).toContainText('\\end{document}');
   await page.getByRole('button', { name: 'Compile', exact: true }).click();
   await expect(page.locator('.job-state')).toHaveText('completed with errors', { timeout: 30_000 });
-  await expect(page.locator('iframe[title="Compiled PDF"]')).toBeVisible();
+  await expect(page.getByLabel(/PDF page 1\. Click to open source/)).toBeVisible();
   await page.getByRole('button', { name: 'Logs' }).click();
   await expect(page.locator('.build-log')).toContainText('Undefined control sequence');
   expect(browserErrors).toEqual([]);
@@ -91,7 +91,17 @@ test('imports an Overleaf-style ZIP with nested files and binary assets', async 
   await page.locator('.tree-row[data-path="/chapters"] > button').click();
   await expect(page.getByRole('button', { name: /introduction\.tex/ })).toBeVisible();
   await page.getByRole('button', { name: 'Compile', exact: true }).click();
-  await expect(page.locator('iframe[title="Compiled PDF"]')).toBeVisible({ timeout: 30_000 });
+  const pdfCanvas = page.getByLabel(/PDF page 1\. Click to open source/);
+  await expect(pdfCanvas).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: /introduction\.tex/ }).click();
+  await expect(page.locator('.cm-content')).toContainText('Nested chapter');
+  await page.getByRole('button', { name: 'Expand PDF' }).click();
+  await expect(page.locator('.build-panel')).toHaveClass(/pdf-expanded/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.build-panel')).not.toHaveClass(/pdf-expanded/);
+  await pdfCanvas.click({ position: { x: 100, y: 100 } });
+  await expect(page.locator('.tabbar')).toContainText('/main.tex');
+  await expect(page.locator('.cm-content')).toBeFocused();
   await page.getByRole('button', { name: 'Logs' }).click();
   await expect(page.locator('.build-log')).toContainText(/plot-eps-conve\s*rted-to\.pdf/);
 });
@@ -177,8 +187,13 @@ test('invites a separate user and enforces role changes and revocation', async (
   await invitee.keyboard.type('\nEdit from invited account');
   await expect(page.locator('.cm-content')).toContainText('Edit from invited account');
 
-  await page.getByRole('button', { name: 'Comments', exact: true }).click();
-  await page.getByRole('button', { name: '＋ New comment' }).click();
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+Home');
+  await page.keyboard.down('Shift');
+  for (let index = 0; index < 8; index += 1) await page.keyboard.press('ArrowRight');
+  await page.keyboard.up('Shift');
+  await page.getByRole('button', { name: '＋ Comment on selection' }).click();
+  await expect(page.locator('.comment-compose blockquote')).not.toBeEmpty();
   await page.getByRole('textbox', { name: 'Comment', exact: true }).fill('Please cite this section.');
   await page.locator('.comment-compose').getByRole('button', { name: 'Comment' }).click();
   await expect(page.getByText('Please cite this section.')).toBeVisible();

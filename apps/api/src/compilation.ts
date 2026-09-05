@@ -1,14 +1,17 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { DatabasePool } from '@texlyre/database';
 import { transaction } from '@texlyre/database';
+import { synctexQuerySchema } from '@texlyre/contracts';
 import { requireUser } from './auth.js';
 import type { CollaborationServer } from './collaboration.js';
 import type { Config } from './config.js';
-import { HttpError } from './http.js';
+import { HttpError, parseBody } from './http.js';
 import { requireProject } from './routes.js';
+import { parseSyncTexResult, projectPathFromSyncTexInput } from './synctex.js';
 
 type JobRow = {
   id: string; projectId: string; status: 'queued' | 'running' | 'completed' | 'completed_with_errors' | 'failed'; compiler: string;
@@ -20,6 +23,14 @@ const jobColumns = `j.id, j.project_id AS "projectId", j.status, j.compiler, j.m
   j.source_hash AS "sourceHash", j.exit_code AS "exitCode", j.log, j.artifact_path AS "artifactPath",
   j.queued_at AS "queuedAt", j.started_at AS "startedAt", j.completed_at AS "completedAt"`;
 const toJob = (job: JobRow) => ({ ...job, hasPdf: Boolean(job.artifactPath), artifactPath: undefined });
+
+function runSyncTex(directory: string, outputPoint: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile('synctex', ['edit', '-o', outputPoint], { cwd: directory, encoding: 'utf8', timeout: 3_000, maxBuffer: 64 * 1024 }, (error, stdout) => {
+      if (error) reject(error); else resolve(stdout);
+    });
+  });
+}
 
 export async function registerCompilationRoutes(app: FastifyInstance, pool: DatabasePool, collaboration: CollaborationServer, config: Config): Promise<void> {
   app.post('/api/projects/:projectId/compile', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => {
@@ -75,5 +86,26 @@ export async function registerCompilationRoutes(app: FastifyInstance, pool: Data
     if (!target.startsWith(`${root}${path.sep}`)) throw new HttpError(500, 'Invalid compilation artifact');
     try { return reply.type('application/pdf').header('cache-control', 'private, no-store').send(await readFile(target)); }
     catch { throw new HttpError(404, 'Compiled PDF not found'); }
+  });
+
+  app.get('/api/projects/:projectId/compile/:jobId/synctex', { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async (request) => {
+    const user = await requireUser(pool, request);
+    const { projectId, jobId } = request.params as { projectId: string; jobId: string };
+    const point = parseBody(synctexQuerySchema, request.query);
+    await requireProject(pool, projectId, user.id);
+    const result = await pool.query<{ artifact_path: string | null }>("SELECT artifact_path FROM compile_jobs WHERE id = $1 AND project_id = $2 AND status IN ('completed', 'completed_with_errors')", [jobId, projectId]);
+    const artifact = result.rows[0]?.artifact_path;
+    if (!artifact) throw new HttpError(404, 'Compiled PDF not found');
+    const root = path.resolve(config.storageRoot); const target = path.resolve(root, artifact);
+    if (!target.startsWith(`${root}${path.sep}`)) throw new HttpError(500, 'Invalid compilation artifact');
+    let output: string;
+    try { output = await runSyncTex(path.dirname(target), `${point.page}:${point.x}:${point.y}:${path.basename(target)}`); }
+    catch { throw new HttpError(404, 'SyncTeX data is unavailable. Recompile the project and try again.'); }
+    const location = parseSyncTexResult(output);
+    const projectPath = location ? projectPathFromSyncTexInput(location.input) : null;
+    if (!location || !projectPath) throw new HttpError(404, 'No source location was found at that PDF position');
+    const file = await pool.query<{ id: string; path: string }>("SELECT id, path FROM project_files WHERE project_id = $1 AND path = $2 AND kind = 'file' AND NOT is_binary", [projectId, projectPath]);
+    if (!file.rows[0]) throw new HttpError(404, 'The synchronized source file is no longer available');
+    return { location: { fileId: file.rows[0].id, path: file.rows[0].path, line: location.line, column: location.column } };
   });
 }

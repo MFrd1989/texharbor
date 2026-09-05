@@ -11,6 +11,7 @@ import * as Y from 'yjs';
 import { api } from './api';
 
 export type Collaborator = { clientId: number; name: string; color: string };
+export type SelectionActionPosition = { top: number; left: number };
 type Props = {
   projectId: string;
   fileId: string;
@@ -21,8 +22,9 @@ type Props = {
   onRole: (role: ProjectRole) => void;
   onAccessLost: (message: string) => void;
   onConnectionReset: () => void;
-  onSelection: (anchor: CommentAnchorDto) => void;
+  onSelection: (anchor: CommentAnchorDto, actionPosition: SelectionActionPosition | null) => void;
   jumpRequest: { anchor: CommentAnchorDto; nonce: number } | null;
+  sourceJumpRequest: { line: number; column: number; nonce: number } | null;
 };
 
 function colorFor(value: string): string {
@@ -52,7 +54,14 @@ function jumpToAnchor(view: EditorView, document: Y.Doc, text: Y.Text, anchor: C
   view.focus();
 }
 
-export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPresence, onRole, onAccessLost, onConnectionReset, onSelection, jumpRequest }: Props) {
+function jumpToSourceLine(view: EditorView, lineNumber: number, column: number): void {
+  const line = view.state.doc.line(Math.min(Math.max(1, lineNumber), view.state.doc.lines));
+  const position = Math.min(line.to, line.from + Math.max(0, column));
+  view.dispatch({ selection: { anchor: position }, effects: EditorView.scrollIntoView(position, { y: 'center' }) });
+  view.focus();
+}
+
+export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPresence, onRole, onAccessLost, onConnectionReset, onSelection, jumpRequest, sourceJumpRequest }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const documentRef = useRef<Y.Doc | null>(null);
@@ -76,6 +85,12 @@ export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPres
     try { jumpToAnchor(view, document, text, jumpRequest.anchor); }
     catch { statusHandler.current('Comment anchor unavailable'); }
   }, [jumpRequest]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!sourceJumpRequest || !view) return;
+    jumpToSourceLine(view, sourceJumpRequest.line, sourceJumpRequest.column);
+  }, [sourceJumpRequest]);
 
   useEffect(() => {
     if (!host.current) return;
@@ -132,11 +147,18 @@ export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPres
           EditorView.updateListener.of((update) => {
             if (!update.selectionSet && !update.docChanged) return;
             const range = update.state.selection.main;
-            selectionHandler.current({
+            const anchor = {
               start: encodePosition(Y.createRelativePositionFromTypeIndex(text, range.from)),
               end: encodePosition(Y.createRelativePositionFromTypeIndex(text, range.to)),
               quote: update.state.doc.sliceString(range.from, range.to).slice(0, 1000),
-            });
+            };
+            const coordinates = range.empty ? null : update.view.coordsAtPos(range.to);
+            const bounds = host.current?.getBoundingClientRect();
+            const actionPosition = coordinates && bounds ? {
+              top: Math.min(Math.max(8, coordinates.bottom - bounds.top + 6), Math.max(8, bounds.height - 38)),
+              left: Math.min(Math.max(8, coordinates.left - bounds.left), Math.max(8, bounds.width - 190)),
+            } : null;
+            selectionHandler.current(anchor, actionPosition);
           }),
         ],
       }),
@@ -146,8 +168,9 @@ export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPres
       try { jumpToAnchor(view, document, text, jumpRequest.anchor); }
       catch { statusHandler.current('Comment anchor unavailable'); }
     }
+    if (sourceJumpRequest) jumpToSourceLine(view, sourceJumpRequest.line, sourceJumpRequest.column);
     const range = view.state.selection.main;
-    selectionHandler.current({ start: encodePosition(Y.createRelativePositionFromTypeIndex(text, range.from)), end: encodePosition(Y.createRelativePositionFromTypeIndex(text, range.to)), quote: '' });
+    selectionHandler.current({ start: encodePosition(Y.createRelativePositionFromTypeIndex(text, range.from)), end: encodePosition(Y.createRelativePositionFromTypeIndex(text, range.to)), quote: '' }, null);
     return () => {
       viewRef.current = null; documentRef.current = null; textRef.current = null;
       view.destroy();
