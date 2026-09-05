@@ -139,9 +139,13 @@ test('invites a separate user and enforces role changes and revocation', async (
   await expect(page.getByText('● Saved', { exact: true })).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole('button', { name: 'Share', exact: true }).click();
-  await page.getByLabel('Email address').fill(inviteeEmail);
+  const invitationEmail = page.getByLabel('Email address');
+  await invitationEmail.fill(inviteeEmail);
   await page.getByLabel('Role').selectOption('editor');
   await page.getByRole('button', { name: 'Create invitation' }).click();
+  await expect(page.getByRole('status')).toContainText('Invitation created');
+  await expect(invitationEmail).toHaveValue('');
+  await expect(page.locator('.share-dialog').getByRole('alert')).toHaveCount(0);
   const invitationUrl = await page.getByLabel('Invitation link').inputValue();
   await page.getByRole('button', { name: 'Close sharing' }).click();
 

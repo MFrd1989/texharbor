@@ -31,11 +31,12 @@ export function SharingDialog({ projectId, role, onClose }: { projectId: string;
   const invite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setBusy(true); setError(''); setCreated(null); setCopied(false);
-    const body = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const form = event.currentTarget;
+    const body = Object.fromEntries(new FormData(form).entries());
     try {
       const result = await api<{ invitation: CreatedInvitation }>(`/api/projects/${projectId}/invitations`, { method: 'POST', body: JSON.stringify(body) });
       setCreated(result.invitation);
-      event.currentTarget.reset();
+      form.reset();
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not create invitation');
