@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import type { FileDto } from '@texlyre/contracts';
+import type { FileDto } from '@texharbor/contracts';
 
 export type FileTreeNode = { file: FileDto; children: FileTreeNode[] };
 

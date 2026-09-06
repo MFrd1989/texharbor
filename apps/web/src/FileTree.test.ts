@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { FileDto } from '@texlyre/contracts';
+import type { FileDto } from '@texharbor/contracts';
 import { buildFileTree } from './FileTree';
 
 const file = (path: string, kind: FileDto['kind']): FileDto => ({ id: path, path, kind, mimeType: null, size: 0, isBinary: path.endsWith('.eps'), updatedAt: '' });

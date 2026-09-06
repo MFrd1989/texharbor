@@ -9,7 +9,7 @@ COPY packages/database/package.json packages/database/package.json
 RUN npm install
 COPY apps/worker apps/worker
 COPY packages/database packages/database
-RUN npm run build -w @texlyre/database && npm run build -w @texlyre/worker
+RUN npm run build -w @texharbor/database && npm run build -w @texharbor/worker
 
 FROM node:24-bookworm-slim AS production
 WORKDIR /app

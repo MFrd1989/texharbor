@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { CommentAnchorDto, CommentThreadDto, ProjectRole, UserDto } from '@texlyre/contracts';
+import type { CommentAnchorDto, CommentThreadDto, ProjectRole, UserDto } from '@texharbor/contracts';
 import { api } from './api';
 
 type Props = {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { CollaboratorDto, InvitationDto, ProjectRole } from '@texlyre/contracts';
+import type { CollaboratorDto, InvitationDto, ProjectRole } from '@texharbor/contracts';
 import { api } from './api';
 
 type CreatedInvitation = InvitationDto & { url: string };

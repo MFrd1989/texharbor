@@ -1,6 +1,6 @@
-# LaTeX Workspace
+# TeXHarbor
 
-LaTeX Workspace is a self-hosted collaborative LaTeX platform with its own user interface and backend. The greenfield implementation does not embed TeXlyre.
+TeXHarbor is a self-hosted collaborative LaTeX platform with its own user interface and backend. It provides a secure harbor for writing, compiling, reviewing, and sharing research projects.
 
 ## Current milestone
 
@@ -32,4 +32,4 @@ The worker needs access to the Docker socket so it can launch tightly constraine
 
 ## Archived implementation
 
-The former TeXlyre-based wrapper is preserved in Git tag `legacy-texlyre-final`. Its final data and ignored worktree files are preserved outside this repository under `/home/ubuntu/texlyre-cloud-legacy-data-20260903` and `/home/ubuntu/texlyre-cloud-legacy-worktree-20260903` on the development host.
+The former TeXlyre-based wrapper is preserved in Git tag `legacy-texlyre-final`. Its final data and ignored worktree files remain in their original compatibility paths on the development host. Existing installations also retain legacy Docker volume names and browser storage keys so upgrades do not detach projects or discard offline edits.

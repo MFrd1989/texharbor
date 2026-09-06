@@ -1,8 +1,8 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
-import type { DatabaseClient, DatabasePool } from '@texlyre/database';
-import { transaction } from '@texlyre/database';
+import type { DatabaseClient, DatabasePool } from '@texharbor/database';
+import { transaction } from '@texharbor/database';
 import {
   createFileSchema,
   createProjectSchema,
@@ -13,7 +13,7 @@ import {
   updateProjectSchema,
   memberRoleSchema,
   type ProjectRole,
-} from '@texlyre/contracts';
+} from '@texharbor/contracts';
 import { authenticateUser, createSession, currentUser, destroySession, registerUser, requireUser } from './auth.js';
 import type { CollaborationServer } from './collaboration.js';
 import { signCollaborationToken } from './collaboration-token.js';

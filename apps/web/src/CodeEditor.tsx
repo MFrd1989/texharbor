@@ -4,7 +4,7 @@ import { EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import type { CommentAnchorDto, ProjectRole, UserDto } from '@texlyre/contracts';
+import type { CommentAnchorDto, ProjectRole, UserDto } from '@texharbor/contracts';
 import { yCollab } from 'y-codemirror.next';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import * as Y from 'yjs';
@@ -97,6 +97,7 @@ export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPres
     const document = new Y.Doc();
     const text = document.getText('content');
     documentRef.current = document; textRef.current = text;
+    // Retain the legacy database key so offline edits survive the product rename.
     const persistence = new IndexeddbPersistence(`texlyre:${projectId}:${fileId}`, document);
     const websocketUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/collaboration`;
     const provider = new HocuspocusProvider({

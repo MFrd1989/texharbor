@@ -15,10 +15,17 @@ test('creates an account, keeps a persistent session, and durably saves source',
   await page.getByLabel('Password').fill('end-to-end-test-password');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'My projects' })).toBeVisible();
-  const session = (await context.cookies()).find((cookie) => cookie.name === 'texlyre_session');
+  const session = (await context.cookies()).find((cookie) => cookie.name === 'texharbor_session');
   expect(session?.httpOnly).toBe(true);
   expect(session?.secure).toBe(true);
   expect(session?.expires || 0).toBeGreaterThan(Date.now() / 1000 + 170 * 24 * 60 * 60);
+  await context.clearCookies();
+  await context.addCookies([{ ...session!, name: 'texlyre_session' }]);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'My projects' })).toBeVisible();
+  const migratedCookies = await context.cookies();
+  expect(migratedCookies.some((cookie) => cookie.name === 'texharbor_session')).toBe(true);
+  expect(migratedCookies.some((cookie) => cookie.name === 'texlyre_session')).toBe(false);
 
   await page.getByRole('button', { name: '＋ New project' }).click();
   await page.getByLabel('Project name').fill('E2E Paper');

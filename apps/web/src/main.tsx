@@ -1,7 +1,7 @@
 import { StrictMode, useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import type { CommentAnchorDto, CommentThreadDto, Compiler, FileDto, ProjectDto, SyncTexLocationDto, UserDto } from '@texlyre/contracts';
+import type { CommentAnchorDto, CommentThreadDto, Compiler, FileDto, ProjectDto, SyncTexLocationDto, UserDto } from '@texharbor/contracts';
 import { api } from './api';
 import { BuildPanel } from './BuildPanel';
 import { CodeEditor, type Collaborator, type SelectionActionPosition } from './CodeEditor';
@@ -28,7 +28,7 @@ function AuthPage({ onAuthenticated }: { onAuthenticated: (user: UserDto) => voi
     finally { setBusy(false); }
   };
   return <main className="auth-page">
-    <section className="auth-brand"><div className="mark">T<span>X</span></div><p className="eyebrow">SELF-HOSTED LATEX</p><h1>Write together.<br />Own every draft.</h1><p>A focused research workspace for source, review, and publication.</p></section>
+    <section className="auth-brand"><div className="mark">T<span>H</span></div><p className="eyebrow">TEXHARBOR · SELF-HOSTED LATEX</p><h1>Write together.<br />Own every draft.</h1><p>A focused research workspace for source, review, and publication.</p></section>
     <section className="auth-panel"><form onSubmit={submit} className="auth-card">
       <p className="eyebrow">{registering ? 'CREATE YOUR ACCOUNT' : 'WELCOME BACK'}</p>
       <h2>{registering ? 'Start a workspace' : 'Sign in'}</h2>
@@ -66,7 +66,7 @@ function Dashboard({ user, onLogout }: { user: UserDto; onLogout: () => void }) 
   const duplicate = async (id: string) => { try { await api(`/api/projects/${id}/duplicate`, { method: 'POST' }); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not duplicate project'); } };
   const importZip = async (event: React.ChangeEvent<HTMLInputElement>) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (!file) return; setImporting(true); setError(''); try { const form = new FormData(); form.append('archive', file); await api('/api/projects/import', { method: 'POST', body: form }); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not import ZIP'); } finally { setImporting(false); } };
   return <div className="app-shell">
-    <aside className="sidebar"><Link to="/" className="brand"><span className="mini-mark">TX</span><strong>LaTeX Workspace</strong></Link><nav>
+    <aside className="sidebar"><Link to="/" className="brand"><span className="mini-mark">TH</span><strong>TeXHarbor</strong></Link><nav>
       <button className={view === 'projects' ? 'active' : ''} onClick={() => setView('projects')}>▦ <span>My projects</span></button>
       <button className={view === 'trash' ? 'active' : ''} onClick={() => setView('trash')}>♲ <span>Trash</span></button>
     </nav><div className="sidebar-user"><span>{user.name.slice(0, 1).toUpperCase()}</span><div><strong>{user.name}</strong><small>{user.email}</small></div><button aria-label="Sign out" onClick={onLogout}>↪</button></div></aside>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { CompileJobDto, Compiler, FileDto, ProjectRole, SyncTexLocationDto } from '@texlyre/contracts';
+import type { CompileJobDto, Compiler, FileDto, ProjectRole, SyncTexLocationDto } from '@texharbor/contracts';
 import { api } from './api';
 import { PdfViewer, type PdfPoint } from './PdfViewer';
 

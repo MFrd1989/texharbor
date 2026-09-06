@@ -5,7 +5,7 @@ import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
-import { createPool, migrate } from '@texlyre/database';
+import { createPool, migrate } from '@texharbor/database';
 import { refreshSession } from './auth.js';
 import { loadConfig } from './config.js';
 import { attachCollaborationServer } from './collaboration.js';

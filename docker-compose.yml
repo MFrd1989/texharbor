@@ -3,8 +3,8 @@ services:
     image: postgres:17-bookworm
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-texlyre}
-      POSTGRES_USER: ${POSTGRES_USER:-texlyre}
+      POSTGRES_DB: ${POSTGRES_DB:-texharbor}
+      POSTGRES_USER: ${POSTGRES_USER:-texharbor}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -16,6 +16,7 @@ services:
 
   app:
     build: .
+    image: ${APP_IMAGE:-texharbor-app:latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -23,7 +24,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: ${DATABASE_URL:-postgres://texlyre:change-me@db:5432/texlyre}
+      DATABASE_URL: ${DATABASE_URL:-postgres://texharbor:change-me@db:5432/texharbor}
       SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3000}
       STORAGE_ROOT: /data/projects
@@ -36,15 +37,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.worker
+    image: ${WORKER_IMAGE:-texharbor-worker:latest}
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgres://texlyre:change-me@db:5432/texlyre}
+      DATABASE_URL: ${DATABASE_URL:-postgres://texharbor:change-me@db:5432/texharbor}
       STORAGE_ROOT: /data/projects
-      COMPILER_IMAGE: ${COMPILER_IMAGE:-latex-workspace-compiler:latest}
-      PROJECT_VOLUME: ${PROJECT_VOLUME:-texlyre-cloud_project-storage}
+      COMPILER_IMAGE: ${COMPILER_IMAGE:-texharbor-compiler:latest}
+      PROJECT_VOLUME: ${PROJECT_VOLUME:-texharbor-project-storage}
     volumes:
       - project-storage:/data/projects
       - /var/run/docker.sock:/var/run/docker.sock
@@ -53,9 +55,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.compiler
-    image: ${COMPILER_IMAGE:-latex-workspace-compiler:latest}
+    image: ${COMPILER_IMAGE:-texharbor-compiler:latest}
     profiles: ["build-only"]
 
 volumes:
   postgres-data:
+    name: ${POSTGRES_VOLUME:-texharbor-postgres-data}
   project-storage:
+    name: ${PROJECT_VOLUME:-texharbor-project-storage}

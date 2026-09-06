@@ -1,8 +1,8 @@
 import type { Server as HttpServer } from 'node:http';
 import { Database } from '@hocuspocus/extension-database';
 import { Hocuspocus, type WebSocketLike } from '@hocuspocus/server';
-import type { DatabasePool } from '@texlyre/database';
-import { transaction } from '@texlyre/database';
+import type { DatabasePool } from '@texharbor/database';
+import { transaction } from '@texharbor/database';
 import crossws from 'crossws/adapters/node';
 import * as Y from 'yjs';
 import { verifyCollaborationToken } from './collaboration-token.js';
@@ -23,7 +23,7 @@ export type CollaborationServer = {
 
 export function attachCollaborationServer(httpServer: HttpServer, pool: DatabasePool, secret: string): CollaborationServer {
   const hocuspocus = new Hocuspocus<CollaborationContext>({
-    name: 'texlyre-collaboration',
+    name: 'texharbor-collaboration',
     debounce: 1_000,
     maxDebounce: 5_000,
     unloadImmediately: false,

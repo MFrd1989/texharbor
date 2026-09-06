@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import Docker from 'dockerode';
-import { createPool, transaction } from '@texlyre/database';
+import { createPool, transaction } from '@texharbor/database';
 import { safeTarget } from './sandbox-path.js';
 
 type ClaimedJob = { id: string; project_id: string; requested_by: string; compiler: 'pdflatex' | 'xelatex' | 'lualatex'; main_file_path: string };
@@ -9,8 +9,8 @@ type JobFile = { path: string; content: Buffer };
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error('DATABASE_URL is required');
 const storageRoot = path.resolve(process.env.STORAGE_ROOT || '/data/projects');
-const compilerImage = process.env.COMPILER_IMAGE || 'latex-workspace-compiler:latest';
-const projectVolume = process.env.PROJECT_VOLUME || 'texlyre-cloud_project-storage';
+const compilerImage = process.env.COMPILER_IMAGE || 'texharbor-compiler:latest';
+const projectVolume = process.env.PROJECT_VOLUME || 'texharbor-project-storage';
 const pool = createPool(databaseUrl);
 const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 let stopping = false;

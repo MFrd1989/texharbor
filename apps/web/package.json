@@ -1,5 +1,5 @@
 {
-  "name": "@texlyre/web",
+  "name": "@texharbor/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.2",
     "@hocuspocus/provider": "4.6.0",
-    "@texlyre/contracts": "*",
+    "@texharbor/contracts": "*",
     "codemirror": "^6.0.2",
     "pdfjs-dist": "^6.3.289",
     "react": "^19.1.1",

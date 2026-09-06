@@ -1,5 +1,5 @@
 {
-  "name": "@texlyre/worker",
+  "name": "@texharbor/worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@texlyre/database": "*",
+    "@texharbor/database": "*",
     "dockerode": "5.0.1"
   },
   "devDependencies": {

@@ -1,14 +1,21 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import argon2 from 'argon2';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { DatabasePool } from '@texlyre/database';
-import type { UserDto } from '@texlyre/contracts';
+import type { DatabasePool } from '@texharbor/database';
+import type { UserDto } from '@texharbor/contracts';
 import { HttpError } from './http.js';
 
-const cookieName = 'texlyre_session';
+const cookieName = 'texharbor_session';
+const legacyCookieName = 'texlyre_session';
 export const sessionLifetimeMs = 180 * 24 * 60 * 60 * 1000;
 const sessionRenewalAgeMs = 24 * 60 * 60 * 1000;
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
+const sessionToken = (request: FastifyRequest) => {
+  const token = request.cookies[cookieName];
+  if (token) return { token, legacy: false };
+  const legacyToken = request.cookies[legacyCookieName];
+  return legacyToken ? { token: legacyToken, legacy: true } : null;
+};
 
 type UserRow = { id: string; name: string; email: string; created_at: Date };
 const toUser = (row: UserRow): UserDto => ({
@@ -33,28 +40,31 @@ export async function createSession(pool: DatabasePool, reply: FastifyReply, use
 }
 
 export async function refreshSession(pool: DatabasePool, request: FastifyRequest, reply: FastifyReply, secure: boolean): Promise<void> {
-  const token = request.cookies[cookieName];
-  if (!token) return;
+  const session = sessionToken(request);
+  if (!session) return;
   const expiresAt = new Date(Date.now() + sessionLifetimeMs);
   const result = await pool.query(`UPDATE sessions SET expires_at = $2, last_seen_at = now()
-    WHERE token_hash = $1 AND expires_at > now() AND last_seen_at < now() - ($3::bigint * interval '1 millisecond')
-    RETURNING token_hash`, [hashToken(token), expiresAt, sessionRenewalAgeMs]);
+    WHERE token_hash = $1 AND expires_at > now()
+      AND ($3::boolean OR last_seen_at < now() - ($4::bigint * interval '1 millisecond'))
+    RETURNING token_hash`, [hashToken(session.token), expiresAt, session.legacy, sessionRenewalAgeMs]);
   if (!result.rowCount) return;
-  reply.setCookie(cookieName, token, { path: '/', httpOnly: true, secure, sameSite: 'lax', expires: expiresAt, maxAge: Math.floor(sessionLifetimeMs / 1000) });
+  reply.setCookie(cookieName, session.token, { path: '/', httpOnly: true, secure, sameSite: 'lax', expires: expiresAt, maxAge: Math.floor(sessionLifetimeMs / 1000) });
+  if (session.legacy) reply.clearCookie(legacyCookieName, { path: '/' });
 }
 
 export async function destroySession(pool: DatabasePool, request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  const token = request.cookies[cookieName];
-  if (token) await pool.query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(token)]);
+  const session = sessionToken(request);
+  if (session) await pool.query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(session.token)]);
   reply.clearCookie(cookieName, { path: '/' });
+  reply.clearCookie(legacyCookieName, { path: '/' });
 }
 
 export async function currentUser(pool: DatabasePool, request: FastifyRequest): Promise<UserDto | null> {
-  const token = request.cookies[cookieName];
-  if (!token) return null;
+  const session = sessionToken(request);
+  if (!session) return null;
   const result = await pool.query<UserRow>(`SELECT u.id, u.name, u.email, u.created_at
     FROM sessions s JOIN users u ON u.id = s.user_id
-    WHERE s.token_hash = $1 AND s.expires_at > now()`, [hashToken(token)]);
+    WHERE s.token_hash = $1 AND s.expires_at > now()`, [hashToken(session.token)]);
   const row = result.rows[0];
   if (!row) return null;
   return toUser(row);

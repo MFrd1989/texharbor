@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { DatabasePool } from '@texlyre/database';
-import { transaction } from '@texlyre/database';
-import { createCommentReplySchema, createCommentThreadSchema, updateCommentThreadSchema } from '@texlyre/contracts';
+import type { DatabasePool } from '@texharbor/database';
+import { transaction } from '@texharbor/database';
+import { createCommentReplySchema, createCommentThreadSchema, updateCommentThreadSchema } from '@texharbor/contracts';
 import { requireUser } from './auth.js';
 import { HttpError, parseBody } from './http.js';
 import { requireProject } from './routes.js';
