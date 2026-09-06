@@ -7,6 +7,8 @@ export type Config = {
   migrationsDirectory: string;
   webDirectory: string;
   storageRoot: string;
+  googleClientId: string | null;
+  googleClientSecret: string | null;
 };
 
 export function loadConfig(): Config {
@@ -24,5 +26,7 @@ export function loadConfig(): Config {
     migrationsDirectory: process.env.MIGRATIONS_DIR || 'packages/database/migrations',
     webDirectory: process.env.WEB_DIR || 'apps/web/dist',
     storageRoot: process.env.STORAGE_ROOT || '/data/projects',
+    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || null,
   };
 }

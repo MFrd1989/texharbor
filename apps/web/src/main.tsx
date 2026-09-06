@@ -6,9 +6,11 @@ import { api } from './api';
 import { BrandLogo, TexDocumentIcon } from './Brand';
 import { BuildPanel } from './BuildPanel';
 import { CodeEditor, type Collaborator, type SelectionActionPosition } from './CodeEditor';
+import { CloudBackupDialog } from './CloudBackupDialog';
 import { CommentsPanel } from './CommentsPanel';
 import { FileTree } from './FileTree';
 import { SharingDialog } from './SharingDialog';
+import { ThemeToggle } from './ThemeToggle';
 import './styles.css';
 import './theme.css';
 
@@ -31,7 +33,7 @@ function AuthPage({ onAuthenticated }: { onAuthenticated: (user: UserDto) => voi
   };
   return <main className="auth-page">
     <section className="auth-brand"><div className="auth-brand-content"><BrandLogo inverse /><div className="auth-message"><p className="eyebrow">SELF-HOSTED COLLABORATIVE LATEX</p><h1>Write together.<br />Own every draft.</h1><p>A focused research workspace for source, review, and publication.</p></div><p className="auth-footnote">Private by design · Built for research teams</p></div></section>
-    <section className="auth-panel"><form onSubmit={submit} className="auth-card">
+    <section className="auth-panel"><ThemeToggle className="auth-theme-toggle" /><form onSubmit={submit} className="auth-card">
       <p className="eyebrow">{registering ? 'CREATE YOUR ACCOUNT' : 'WELCOME BACK'}</p>
       <h2>{registering ? 'Start a workspace' : 'Sign in'}</h2>
       {registering && <label>Display name<input name="name" autoComplete="name" required maxLength={100} /></label>}
@@ -50,12 +52,20 @@ function Dashboard({ user, onLogout }: { user: UserDto; onLogout: () => void }) 
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [cloudProjectId, setCloudProjectId] = useState<string | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const load = useCallback(async () => {
     try { setProjects((await api<{ projects: ProjectDto[] }>(`/api/projects${view === 'trash' ? '?view=trash' : ''}`)).projects); setError(''); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not load projects'); }
   }, [view]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('cloud')) return;
+    setCloudProjectId('');
+    if (params.get('cloud') === 'error') setError(params.get('message') || 'Google Drive connection failed');
+    history.replaceState(null, '', window.location.pathname);
+  }, []);
   const create = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault(); const form = new FormData(event.currentTarget);
     try { await api('/api/projects', { method: 'POST', body: JSON.stringify(Object.fromEntries(form.entries())) }); setShowCreate(false); await load(); }
@@ -71,15 +81,17 @@ function Dashboard({ user, onLogout }: { user: UserDto; onLogout: () => void }) 
     <aside className="sidebar"><Link to="/" className="brand" aria-label="TeXHarbor home"><BrandLogo inverse /></Link><nav aria-label="Project views">
       <button className={view === 'projects' ? 'active' : ''} onClick={() => setView('projects')}>▦ <span>My projects</span></button>
       <button className={view === 'trash' ? 'active' : ''} onClick={() => setView('trash')}>♲ <span>Trash</span></button>
-    </nav><div className="sidebar-user"><span>{user.name.slice(0, 1).toUpperCase()}</span><div><strong>{user.name}</strong><small>{user.email}</small></div><button aria-label="Sign out" onClick={onLogout}>↪</button></div></aside>
+      <button aria-label="Cloud backup" onClick={() => setCloudProjectId('')}>☁ <span>Cloud backup</span></button>
+    </nav><div className="sidebar-user"><span>{user.name.slice(0, 1).toUpperCase()}</span><div><strong>{user.name}</strong><small>{user.email}</small></div><ThemeToggle /><button aria-label="Sign out" onClick={onLogout}>↪</button></div></aside>
     <main className="dashboard"><header><div><p className="eyebrow">WORKSPACE</p><h1>{view === 'trash' ? 'Trash' : 'My projects'}</h1></div>{view === 'projects' && <div className="header-actions"><input ref={importInput} type="file" accept=".zip,application/zip" hidden onChange={(event) => void importZip(event)} /><button onClick={() => importInput.current?.click()} disabled={importing}>{importing ? 'Importing…' : 'Import ZIP'}</button><button className="primary" onClick={() => setShowCreate(true)}>＋ New project</button></div>}</header>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="project-head"><span>PROJECT</span><span>ROLE</span><span>LAST UPDATED</span><span>ACTIONS</span></div>
       <section className="project-list">{projects.length === 0 ? <div className="empty"><div>∑</div><h2>{view === 'trash' ? 'Trash is empty' : 'No projects yet'}</h2><p>{view === 'trash' ? 'Deleted projects will appear here.' : 'Create a project and begin with main.tex.'}</p></div> : projects.map((project) => <article className="project-row" key={project.id}>
-        <Link to={`/projects/${project.id}`} className="project-title"><TexDocumentIcon /><div><strong>{project.name}</strong><small>{project.description || 'No description'}</small></div></Link><span className="role">{project.role}</span><time>{new Date(project.updatedAt).toLocaleString()}</time><div className="row-actions">{view === 'trash' ? <><button onClick={() => void restore(project.id)}>Restore</button><button className="danger" onClick={() => void permanentlyDelete(project.id)}>Delete</button></> : <><Link className="button" to={`/projects/${project.id}`}>Open</Link>{project.role === 'owner' && <><button onClick={() => void duplicate(project.id)}>Duplicate</button><button onClick={() => void rename(project)}>Rename</button><button className="danger" onClick={() => void trash(project.id)}>Trash</button></>}</>}</div>
+        <Link to={`/projects/${project.id}`} className="project-title"><TexDocumentIcon /><div><strong>{project.name}</strong><small>{project.description || 'No description'}</small></div></Link><span className="role">{project.role}</span><time>{new Date(project.updatedAt).toLocaleString()}</time><div className="row-actions">{view === 'trash' ? <><button onClick={() => void restore(project.id)}>Restore</button><button className="danger" onClick={() => void permanentlyDelete(project.id)}>Delete</button></> : <><Link className="button" to={`/projects/${project.id}`}>Open</Link>{project.role === 'owner' && <><button onClick={() => setCloudProjectId(project.id)}>Backup</button><button onClick={() => void duplicate(project.id)}>Duplicate</button><button onClick={() => void rename(project)}>Rename</button><button className="danger" onClick={() => void trash(project.id)}>Trash</button></>}</>}</div>
       </article>)}</section>
     </main>
     {showCreate && <div className="dialog-backdrop" role="presentation"><form className="dialog" onSubmit={create}><h2>New project</h2><label>Project name<input name="name" defaultValue="Untitled paper" autoFocus required maxLength={200} /></label><label>Description<textarea name="description" rows={3} maxLength={2000} /></label><div><button type="button" onClick={() => setShowCreate(false)}>Cancel</button><button className="primary">Create project</button></div></form></div>}
+    {cloudProjectId !== null && <CloudBackupDialog projects={projects} initialProjectId={cloudProjectId || undefined} onClose={() => setCloudProjectId(null)} />}
   </div>;
 }
 
@@ -93,6 +105,7 @@ function Workspace({ user }: { user: UserDto }) {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [showSharing, setShowSharing] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showCloud, setShowCloud] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'files' | 'source' | 'pdf'>('source');
   const [commentSelection, setCommentSelection] = useState<CommentAnchorDto | null>(null);
   const [commentActionPosition, setCommentActionPosition] = useState<SelectionActionPosition | null>(null);
@@ -110,13 +123,14 @@ function Workspace({ user }: { user: UserDto }) {
   const jumpToComment = async (thread: CommentThreadDto) => { const file = files.find((item) => item.id === thread.fileId); if (!file) return; if (selected?.id !== file.id) await openFile(file); setMobilePanel('source'); setJumpRequest({ anchor: thread.anchor, nonce: Date.now() }); };
   const jumpFromPdf = async (location: SyncTexLocationDto) => { const file = files.find((item) => item.id === location.fileId); if (!file) { setError(`Source file ${location.path} is not available.`); return; } if (selected?.id !== file.id) await openFile(file); setMobilePanel('source'); setSourceJumpRequest({ line: location.line, column: location.column, nonce: Date.now() }); };
   if (error && !project) return <main className="fatal"><h1>Could not open project</h1><p>{error}</p><button onClick={() => navigate('/')}>Back to projects</button></main>;
-  return <div className={`workspace mobile-${mobilePanel} ${showComments ? 'comments-open' : ''}`}><header className="workspace-header"><button className="back" aria-label="Back to projects" onClick={() => navigate('/')}>← <span>Projects</span></button><div className="workspace-title"><strong>{project?.name || 'Loading…'}</strong><span>{project?.compiler}</span></div>{project && <button className="share-button" onClick={() => setShowSharing(true)}>{project.role === 'owner' ? 'Share' : 'People'}</button>}<button className="workspace-action" onClick={() => setShowComments((open) => !open)}>Comments</button><div className="presence" aria-label="Online collaborators">{collaborators.map((collaborator) => <span key={collaborator.clientId} title={`${collaborator.name} · online`} style={{ backgroundColor: collaborator.color }}>{collaborator.name.slice(0, 1).toUpperCase()}</span>)}</div><span className={`save-status ${['Access denied', 'Offline'].includes(status) ? 'failed' : ''}`}>● {status}</span></header>
+  return <div className={`workspace mobile-${mobilePanel} ${showComments ? 'comments-open' : ''}`}><header className="workspace-header"><button className="back" aria-label="Back to projects" onClick={() => navigate('/')}>← <span>Projects</span></button><div className="workspace-title"><strong>{project?.name || 'Loading…'}</strong><span>{project?.compiler}</span></div>{project?.role === 'owner' && <button className="workspace-action cloud-action" onClick={() => setShowCloud(true)}>Backup</button>}{project && <button className="share-button" onClick={() => setShowSharing(true)}>{project.role === 'owner' ? 'Share' : 'People'}</button>}<button className="workspace-action" onClick={() => setShowComments((open) => !open)}>Comments</button><ThemeToggle className="workspace-theme-toggle" /><div className="presence" aria-label="Online collaborators">{collaborators.map((collaborator) => <span key={collaborator.clientId} title={`${collaborator.name} · online`} style={{ backgroundColor: collaborator.color }}>{collaborator.name.slice(0, 1).toUpperCase()}</span>)}</div><span className={`save-status ${['Access denied', 'Offline'].includes(status) ? 'failed' : ''}`}>● {status}</span></header>
     <nav className="mobile-workspace-tabs" aria-label="Workspace panels"><button className={mobilePanel === 'files' ? 'active' : ''} aria-pressed={mobilePanel === 'files'} onClick={() => setMobilePanel('files')}>Files</button><button className={mobilePanel === 'source' ? 'active' : ''} aria-pressed={mobilePanel === 'source'} onClick={() => setMobilePanel('source')}>Source</button><button className={mobilePanel === 'pdf' ? 'active' : ''} aria-pressed={mobilePanel === 'pdf'} onClick={() => setMobilePanel('pdf')}>PDF</button></nav>
     <aside className="file-panel"><div className="panel-title"><strong>Files</strong>{project?.role !== 'viewer' && <span><button title="New file" onClick={() => void createNode('file')}>＋</button><button title="New folder" onClick={() => void createNode('directory')}>▱</button></span>}</div><FileTree files={files} selectedId={selected?.id} editable={project?.role !== 'viewer'} onOpen={(file) => void openFile(file)} onRename={(file) => void renameNode(file)} onDelete={(file) => void deleteNode(file)} /></aside>
     <main className="source-panel"><div className="tabbar"><span>{selected?.path || 'Select a file'}</span>{error && <span className="inline-error">{error}</span>}</div>{selected ? <div className="editor-wrap"><CodeEditor key={`${selected.id}:${connectionEpoch}`} projectId={projectId} fileId={selected.id} user={user} readOnly={project?.role === 'viewer'} onStatus={setStatus} onPresence={setCollaborators} onRole={(role) => setProject((current) => current && current.role !== role ? { ...current, role } : current)} onAccessLost={(message) => { setError(message); setProject(null); }} onConnectionReset={() => setConnectionEpoch((epoch) => epoch + 1)} onSelection={(anchor, actionPosition) => { setCommentSelection(anchor); setCommentActionPosition(actionPosition); }} jumpRequest={jumpRequest} sourceJumpRequest={sourceJumpRequest} />{commentSelection?.quote && commentActionPosition && <button className="selection-comment" style={commentActionPosition} onMouseDown={(event) => event.preventDefault()} onClick={() => { setComposeCommentRequest(Date.now()); setShowComments(true); }}>＋ Comment on selection</button>}</div> : <div className="editor-empty">Select a source file</div>}</main>
     {project && <BuildPanel projectId={projectId} project={project} files={files} onSettings={(settings) => setProject((current) => current ? { ...current, ...settings } : current)} onSourceLocation={(location) => void jumpFromPdf(location)} />}
     {showComments && project && <CommentsPanel projectId={projectId} fileId={selected?.id || null} selection={commentSelection} user={user} role={project.role} composeRequest={composeCommentRequest} onClose={() => setShowComments(false)} onJump={(thread) => void jumpToComment(thread)} />}
     {showSharing && project && <SharingDialog projectId={projectId} role={project.role} onClose={() => setShowSharing(false)} />}
+    {showCloud && project && <CloudBackupDialog projects={[project]} initialProjectId={project.id} onClose={() => setShowCloud(false)} />}
   </div>;
 }
 
@@ -135,7 +149,7 @@ function InvitationPage({ user }: { user: UserDto }) {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not accept invitation'); setBusy(false); }
   };
   const reject = async () => { setBusy(true); setError(''); try { await api(`/api/invitations/${encodeURIComponent(token)}/reject`, { method: 'POST' }); navigate('/', { replace: true }); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not reject invitation'); setBusy(false); } };
-  return <main className="invitation-page"><section className="invitation-card"><p className="eyebrow">PROJECT INVITATION</p><h1>{invitation ? `Join ${invitation.projectName}` : 'Join a shared project'}</h1>{invitation && <p><strong>{invitation.inviterName}</strong> invited you as {invitation.role === 'editor' ? 'an editor' : 'a viewer'}.</p>}<p>You are signed in as <strong>{user.email}</strong>. Invitations can only be accepted by the email address they were created for.</p>{error && <p className="error" role="alert">{error}</p>}<div><button disabled={busy || !invitation} onClick={() => void reject()}>Decline</button><button className="primary" disabled={busy || !invitation} onClick={() => void accept()}>{busy ? 'Please wait…' : 'Accept invitation'}</button></div></section></main>;
+  return <main className="invitation-page"><ThemeToggle className="invitation-theme-toggle" /><section className="invitation-card"><p className="eyebrow">PROJECT INVITATION</p><h1>{invitation ? `Join ${invitation.projectName}` : 'Join a shared project'}</h1>{invitation && <p><strong>{invitation.inviterName}</strong> invited you as {invitation.role === 'editor' ? 'an editor' : 'a viewer'}.</p>}<p>You are signed in as <strong>{user.email}</strong>. Invitations can only be accepted by the email address they were created for.</p>{error && <p className="error" role="alert">{error}</p>}<div><button disabled={busy || !invitation} onClick={() => void reject()}>Decline</button><button className="primary" disabled={busy || !invitation} onClick={() => void accept()}>{busy ? 'Please wait…' : 'Accept invitation'}</button></div></section></main>;
 }
 
 function App() {

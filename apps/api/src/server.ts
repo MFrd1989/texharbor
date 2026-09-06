@@ -11,6 +11,7 @@ import { loadConfig } from './config.js';
 import { attachCollaborationServer } from './collaboration.js';
 import { registerCommentRoutes } from './comments.js';
 import { registerCompilationRoutes } from './compilation.js';
+import { registerCloudRoutes } from './cloud.js';
 import { HttpError, sendError } from './http.js';
 import { registerRoutes } from './routes.js';
 
@@ -41,6 +42,7 @@ const collaboration = attachCollaborationServer(app.server, pool, config.session
 await registerRoutes(app, pool, config, collaboration);
 await registerCommentRoutes(app, pool);
 await registerCompilationRoutes(app, pool, collaboration, config);
+await registerCloudRoutes(app, pool, config, collaboration);
 
 if (config.isProduction) {
   await app.register(fastifyStatic, { root: path.resolve(config.webDirectory), wildcard: false });

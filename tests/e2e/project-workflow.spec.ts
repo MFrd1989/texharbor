@@ -245,6 +245,8 @@ test('invites a separate user and enforces role changes and revocation', async (
   expect(renameStatus).toBe(403);
   const compileStatus = await invitee.evaluate(async (id) => (await fetch(`/api/projects/${id}/compile`, { method: 'POST' })).status, projectId);
   expect(compileStatus).toBe(403);
+  const backupStatus = await invitee.evaluate(async (id) => (await fetch(`/api/projects/${id}/backups`, { method: 'POST' })).status, projectId);
+  expect(backupStatus).toBe(403);
 
   page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Remove' }).click();
@@ -277,6 +279,14 @@ test('provides a mobile workspace without horizontal overflow', async ({ page })
   await page.getByLabel('Password').fill('mobile-end-to-end-password');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'My projects' })).toBeVisible();
+  await page.getByRole('button', { name: 'Use dark theme' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', { name: 'Cloud backup' }).click();
+  await expect(page.getByRole('heading', { name: 'Google Drive backups' })).toBeVisible();
+  await expect(page.getByText('Google Drive is not configured')).toBeVisible();
+  await page.getByRole('button', { name: 'Close cloud backups' }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.getByRole('button', { name: '＋ New project' }).click();

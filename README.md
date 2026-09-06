@@ -25,6 +25,8 @@ TeXHarbor combines a project dashboard, collaborative source editor, isolated La
 - Build logs, errors, warnings, continuous PDF viewing, and SyncTeX navigation
 - Responsive Files, Source, and PDF workspaces for mobile screens
 - Installable mobile web app with dedicated iOS, Android, and maskable icons
+- Encrypted, content-aware Google Drive backups with history and safe restore
+- Persistent light and dark themes with system-theme detection
 
 ## Architecture
 
@@ -41,6 +43,7 @@ flowchart LR
     W -->|Read source / write results| V
     W -->|Docker API| X[Disposable TeX sandbox]
     X -->|PDF, SyncTeX, logs| V
+    A -->|OAuth 2.0 + drive.file| G[Google Drive backups]
 ```
 
 The API is authoritative for identity, ownership, membership, invitations, comments, and project metadata. Yjs document updates are persisted in PostgreSQL, while project assets and build artifacts use a dedicated volume. Compilation happens outside the API process in short-lived containers with no network, no application secrets, and constrained resources.
@@ -100,6 +103,10 @@ TeXHarbor is available at `http://localhost:3000` by default. For an internet-fa
 | `POSTGRES_VOLUME` | Durable PostgreSQL volume name |
 | `PROJECT_VOLUME` | Durable project and build-artifact volume name |
 | `COMPILER_IMAGE` | Sandboxed TeX image used by the worker |
+| `GOOGLE_CLIENT_ID` | Optional Google OAuth web-application client ID for Drive backups |
+| `GOOGLE_CLIENT_SECRET` | Optional server-only Google OAuth client secret |
+
+For Drive backups, enable the Google Drive API and register `${PUBLIC_ORIGIN}/api/cloud/google/callback` as an authorized redirect URI. TeXHarbor requests only `drive.file`, encrypts refresh tokens at rest, and remains fully usable when Drive is not configured or connected.
 
 Do not commit `.env`, reuse development secrets in production, or remove named volumes during an upgrade.
 
@@ -124,6 +131,6 @@ The worker requires Docker socket access to launch compiler sandboxes. Deploy it
 
 ## Roadmap
 
-Planned vertical slices include project activity and version restoration, Google Drive backup and restore, richer notifications, and further source/PDF synchronization improvements.
+Planned vertical slices include a browsable activity log and version restoration UI, richer notifications, scheduled backup policies, and further source/PDF synchronization improvements.
 
 Contributor conventions and verification expectations are documented in [AGENTS.md](AGENTS.md).

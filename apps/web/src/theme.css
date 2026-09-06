@@ -675,3 +675,332 @@ select:hover {
     flex-wrap: wrap;
   }
 }
+
+/* Cloud backups and appearance */
+.theme-toggle {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 17px;
+}
+
+.auth-theme-toggle,
+.invitation-theme-toggle {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+
+.auth-panel,
+.invitation-page {
+  position: relative;
+}
+
+.sidebar-user {
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
+}
+
+.sidebar-user .theme-toggle,
+.workspace-theme-toggle {
+  border-color: #ffffff1c;
+  background: #ffffff08;
+  color: #d7e5e8;
+  box-shadow: none;
+}
+
+.cloud-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+}
+
+.cloud-dialog > header,
+.cloud-account,
+.cloud-project,
+.backup-history article {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cloud-dialog > header {
+  align-items: start;
+  justify-content: space-between;
+}
+
+.cloud-dialog > header h2 {
+  margin: 4px 0 18px;
+}
+
+.cloud-dialog > header > button {
+  border: 0;
+  background: transparent;
+  font-size: 22px;
+}
+
+.cloud-connect,
+.cloud-unavailable {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  line-height: 1.55;
+}
+
+.cloud-connect small {
+  display: block;
+  margin-top: 14px;
+  color: var(--muted);
+}
+
+.cloud-unavailable code {
+  overflow-wrap: anywhere;
+}
+
+.cloud-account {
+  padding: 14px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cloud-account > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #4285f4;
+  color: white;
+  font-weight: 700;
+}
+
+.cloud-account > div,
+.backup-history article > div {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+}
+
+.cloud-account small,
+.backup-history small {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cloud-project {
+  align-items: end;
+  margin: 18px 0;
+}
+
+.cloud-project label {
+  flex: 1;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.backup-history h3 {
+  margin: 24px 0 8px;
+  font-size: 13px;
+}
+
+.backup-history article {
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.backup-history > p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.success {
+  padding: 10px 12px;
+  border: 1px solid #9cd0bc;
+  border-radius: 7px;
+  background: #e8f7f0;
+  color: #176044;
+  font-size: 13px;
+}
+
+[data-theme='dark'] {
+  --ink: #dce9ec;
+  --muted: #91a6ae;
+  --paper: #102630;
+  --line: #29414b;
+  --green: #34c7b3;
+  --green-dark: #249e8e;
+  --red: #ff8f87;
+  --teal-soft: #123b3c;
+  --surface: #091b23;
+  --shadow-sm: 0 1px 2px #0005, 0 5px 16px #0003;
+  --shadow-lg: 0 24px 70px #0008;
+}
+
+[data-theme='dark'] body,
+[data-theme='dark'] .app-shell,
+[data-theme='dark'] .workspace,
+[data-theme='dark'] .auth-panel,
+[data-theme='dark'] .invitation-page {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+[data-theme='dark'] button,
+[data-theme='dark'] .button,
+[data-theme='dark'] input,
+[data-theme='dark'] textarea,
+[data-theme='dark'] select,
+[data-theme='dark'] .auth-card,
+[data-theme='dark'] .dialog,
+[data-theme='dark'] .invitation-card,
+[data-theme='dark'] .project-row,
+[data-theme='dark'] .comment-thread,
+[data-theme='dark'] .comment-compose {
+  border-color: var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+[data-theme='dark'] button:hover,
+[data-theme='dark'] .button:hover {
+  border-color: #48616b;
+  background: #17313b;
+}
+
+[data-theme='dark'] .primary,
+[data-theme='dark'] .primary:hover {
+  background: var(--green-dark);
+  border-color: var(--green-dark);
+  color: #fff;
+}
+
+[data-theme='dark'] .dashboard h1,
+[data-theme='dark'] .empty h2,
+[data-theme='dark'] .pdf-document-viewer,
+[data-theme='dark'] .pdf-viewer strong {
+  color: var(--ink) !important;
+}
+
+[data-theme='dark'] .project-file-paper,
+[data-theme='dark'] .empty,
+[data-theme='dark'] .file-panel,
+[data-theme='dark'] .build-panel,
+[data-theme='dark'] .comments-panel {
+  background: #0d222b;
+}
+
+[data-theme='dark'] .panel-title,
+[data-theme='dark'] .tabbar,
+[data-theme='dark'] .build-panel > header,
+[data-theme='dark'] .build-status,
+[data-theme='dark'] .pdf-toolbar,
+[data-theme='dark'] .mobile-workspace-tabs {
+  border-color: var(--line);
+  background: #122a34;
+  color: var(--ink);
+}
+
+[data-theme='dark'] .tree-row > button,
+[data-theme='dark'] .panel-title {
+  color: #bfd0d5;
+}
+
+[data-theme='dark'] .tree-row > button:hover,
+[data-theme='dark'] .tree-row > button.selected,
+[data-theme='dark'] .mobile-workspace-tabs button.active {
+  background: #153a3b;
+  color: #6ee7d2;
+}
+
+[data-theme='dark'] .editor-host .cm-editor,
+[data-theme='dark'] .editor-host .cm-scroller,
+[data-theme='dark'] .editor-host .cm-gutters {
+  background: #0b1d25;
+  color: #d9e6e9;
+}
+
+[data-theme='dark'] .editor-host .cm-gutters {
+  border-color: #29414b;
+  color: #718890;
+}
+
+[data-theme='dark'] .editor-host .cm-activeLine,
+[data-theme='dark'] .editor-host .cm-activeLineGutter {
+  background: #132b35;
+}
+
+[data-theme='dark'] .cloud-connect,
+[data-theme='dark'] .cloud-unavailable {
+  background: #0b2029;
+}
+
+[data-theme='dark'] .success {
+  border-color: #286b57;
+  background: #102f29;
+  color: #80d9bd;
+}
+
+[data-theme='dark'] .error {
+  border-color: #713f42;
+  background: #351f24;
+  color: #ffaaa4;
+}
+
+[data-theme='dark'] .pdf-canvas-scroll {
+  background: #06141a;
+}
+
+@media (max-width: 800px) {
+  .workspace-header .workspace-title {
+    flex: 1 1 auto;
+  }
+
+  .workspace-header .share-button {
+    margin-left: 0;
+  }
+
+  .workspace-header .cloud-action {
+    width: 34px;
+    padding: 7px;
+    font-size: 0;
+  }
+
+  .workspace-header .cloud-action::after {
+    content: '☁';
+    font-size: 14px;
+  }
+
+  .workspace-theme-toggle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .workspace-header .workspace-action:not(.cloud-action) {
+    width: 34px;
+    padding: 7px;
+    font-size: 0;
+  }
+
+  .workspace-header .workspace-action:not(.cloud-action)::after {
+    content: '✎';
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .sidebar-user {
+    grid-template-columns: auto auto;
+  }
+
+  .cloud-project {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

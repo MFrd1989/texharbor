@@ -18,6 +18,7 @@ function parseDocumentName(documentName: string): { projectId: string; fileId: s
 export type CollaborationServer = {
   disconnectProject: (projectId: string) => Promise<void>;
   persistProject: (projectId: string) => Promise<void>;
+  resetProject: (projectId: string) => Promise<void>;
   destroy: () => Promise<void>;
 };
 
@@ -114,6 +115,14 @@ export function attachCollaborationServer(httpServer: HttpServer, pool: Database
       const files = await pool.query<{ document_name: string }>(`SELECT project_id::text || ':' || id::text AS document_name
         FROM project_files WHERE project_id = $1 AND kind = 'file' AND NOT is_binary`, [projectId]);
       for (const file of files.rows) hocuspocus.closeConnections(file.document_name);
+    },
+    resetProject: async (projectId) => {
+      const prefix = `${projectId}:`;
+      for (const [documentName, document] of [...hocuspocus.documents]) {
+        if (!documentName.startsWith(prefix)) continue;
+        hocuspocus.closeConnections(documentName);
+        await hocuspocus.unloadDocument(document);
+      }
     },
     destroy: async () => {
       httpServer.off('upgrade', upgrade);
