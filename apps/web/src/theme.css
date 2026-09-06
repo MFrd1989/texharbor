@@ -87,13 +87,25 @@ select:focus-visible,
 }
 
 .harbor-mark-background {
-  fill: var(--green);
+  fill: #0d3b46;
 }
 
-.harbor-mark-letter {
+.harbor-rain-trail {
   fill: none;
-  stroke: #f8fafc;
-  stroke-width: 3.25;
+  stroke: #5eead4;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.harbor-letter {
+  fill: #f8fafc;
+  font: 700 15px Manrope, system-ui, sans-serif;
+}
+
+.harbor-breakwater {
+  fill: none;
+  stroke: #7dd3c7;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

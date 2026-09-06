@@ -262,6 +262,15 @@ test('invites a separate user and enforces role changes and revocation', async (
 test('provides a mobile workspace without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/icons/apple-touch-icon.png');
+  const manifestResponse = await page.request.get('/manifest.webmanifest');
+  expect(manifestResponse.ok()).toBe(true);
+  const manifest = await manifestResponse.json() as { name: string; display: string; icons: Array<{ src: string; purpose: string }> };
+  expect(manifest.name).toBe('TeXHarbor');
+  expect(manifest.display).toBe('standalone');
+  expect(manifest.icons.some((icon) => icon.purpose === 'maskable')).toBe(true);
+  for (const icon of manifest.icons) expect((await page.request.get(icon.src)).ok()).toBe(true);
   await page.getByRole('button', { name: 'New here? Create an account' }).click();
   await page.getByLabel('Display name').fill('Mobile Researcher');
   await page.getByLabel('Email address').fill(`mobile-${Date.now()}@example.test`);

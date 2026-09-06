@@ -24,6 +24,7 @@ TeXHarbor combines a project dashboard, collaborative source editor, isolated La
 - Asynchronous pdfLaTeX, XeLaTeX, and LuaLaTeX compilation
 - Build logs, errors, warnings, continuous PDF viewing, and SyncTeX navigation
 - Responsive Files, Source, and PDF workspaces for mobile screens
+- Installable mobile web app with dedicated iOS, Android, and maskable icons
 
 ## Architecture
 

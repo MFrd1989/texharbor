@@ -5,11 +5,15 @@ type BrandLogoProps = {
 };
 
 export function HarborMark({ className = '', inverse = false }: { className?: string; inverse?: boolean }) {
-  return <svg className={`harbor-mark ${className}`} viewBox="0 0 48 48" role="img" aria-label="TeXHarbor">
-    <rect x="1" y="1" width="46" height="46" rx="14" className="harbor-mark-background" />
-    <path d="M15 12.5v22M33 12.5v22M15 23h18" className="harbor-mark-letter" />
-    <path d="M10.5 33.5c4.5-3.2 9-3.2 13.5 0s9 3.2 13.5 0" className="harbor-mark-wave" />
-    {inverse && <rect x="1" y="1" width="46" height="46" rx="14" className="harbor-mark-outline" />}
+  return <svg className={`harbor-mark ${className}`} viewBox="0 0 64 64" role="img" aria-label="TeXHarbor">
+    <rect x="1" y="1" width="62" height="62" rx="18" className="harbor-mark-background" />
+    <path d="M16 7v5M32 11v6M48 6v5" className="harbor-rain-trail" />
+    <text x="11" y="25" className="harbor-letter">T</text>
+    <text x="27" y="32" className="harbor-letter">e</text>
+    <text x="43" y="24" className="harbor-letter">X</text>
+    <path d="M7 43.5h13.5l7 7M57 43.5H43.5l-7 7" className="harbor-breakwater" />
+    <path d="M9 55c4-2.7 8-2.7 12 0s8 2.7 12 0 8-2.7 12 0 8 2.7 12 0" className="harbor-mark-wave" />
+    {inverse && <rect x="1" y="1" width="62" height="62" rx="18" className="harbor-mark-outline" />}
   </svg>;
 }
 
