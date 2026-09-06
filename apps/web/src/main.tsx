@@ -3,12 +3,14 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import type { CommentAnchorDto, CommentThreadDto, Compiler, FileDto, ProjectDto, SyncTexLocationDto, UserDto } from '@texharbor/contracts';
 import { api } from './api';
+import { BrandLogo, TexDocumentIcon } from './Brand';
 import { BuildPanel } from './BuildPanel';
 import { CodeEditor, type Collaborator, type SelectionActionPosition } from './CodeEditor';
 import { CommentsPanel } from './CommentsPanel';
 import { FileTree } from './FileTree';
 import { SharingDialog } from './SharingDialog';
 import './styles.css';
+import './theme.css';
 
 type AuthResponse = { user: UserDto | null };
 
@@ -28,7 +30,7 @@ function AuthPage({ onAuthenticated }: { onAuthenticated: (user: UserDto) => voi
     finally { setBusy(false); }
   };
   return <main className="auth-page">
-    <section className="auth-brand"><div className="mark">T<span>H</span></div><p className="eyebrow">TEXHARBOR · SELF-HOSTED LATEX</p><h1>Write together.<br />Own every draft.</h1><p>A focused research workspace for source, review, and publication.</p></section>
+    <section className="auth-brand"><div className="auth-brand-content"><BrandLogo inverse /><div className="auth-message"><p className="eyebrow">SELF-HOSTED COLLABORATIVE LATEX</p><h1>Write together.<br />Own every draft.</h1><p>A focused research workspace for source, review, and publication.</p></div><p className="auth-footnote">Private by design · Built for research teams</p></div></section>
     <section className="auth-panel"><form onSubmit={submit} className="auth-card">
       <p className="eyebrow">{registering ? 'CREATE YOUR ACCOUNT' : 'WELCOME BACK'}</p>
       <h2>{registering ? 'Start a workspace' : 'Sign in'}</h2>
@@ -66,7 +68,7 @@ function Dashboard({ user, onLogout }: { user: UserDto; onLogout: () => void }) 
   const duplicate = async (id: string) => { try { await api(`/api/projects/${id}/duplicate`, { method: 'POST' }); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not duplicate project'); } };
   const importZip = async (event: React.ChangeEvent<HTMLInputElement>) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (!file) return; setImporting(true); setError(''); try { const form = new FormData(); form.append('archive', file); await api('/api/projects/import', { method: 'POST', body: form }); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not import ZIP'); } finally { setImporting(false); } };
   return <div className="app-shell">
-    <aside className="sidebar"><Link to="/" className="brand"><span className="mini-mark">TH</span><strong>TeXHarbor</strong></Link><nav>
+    <aside className="sidebar"><Link to="/" className="brand" aria-label="TeXHarbor home"><BrandLogo inverse /></Link><nav aria-label="Project views">
       <button className={view === 'projects' ? 'active' : ''} onClick={() => setView('projects')}>▦ <span>My projects</span></button>
       <button className={view === 'trash' ? 'active' : ''} onClick={() => setView('trash')}>♲ <span>Trash</span></button>
     </nav><div className="sidebar-user"><span>{user.name.slice(0, 1).toUpperCase()}</span><div><strong>{user.name}</strong><small>{user.email}</small></div><button aria-label="Sign out" onClick={onLogout}>↪</button></div></aside>
@@ -74,7 +76,7 @@ function Dashboard({ user, onLogout }: { user: UserDto; onLogout: () => void }) 
       {error && <p className="error" role="alert">{error}</p>}
       <div className="project-head"><span>PROJECT</span><span>ROLE</span><span>LAST UPDATED</span><span>ACTIONS</span></div>
       <section className="project-list">{projects.length === 0 ? <div className="empty"><div>∑</div><h2>{view === 'trash' ? 'Trash is empty' : 'No projects yet'}</h2><p>{view === 'trash' ? 'Deleted projects will appear here.' : 'Create a project and begin with main.tex.'}</p></div> : projects.map((project) => <article className="project-row" key={project.id}>
-        <Link to={`/projects/${project.id}`} className="project-title"><span className="file-icon">T<sub>E</sub>X</span><div><strong>{project.name}</strong><small>{project.description || 'No description'}</small></div></Link><span className="role">{project.role}</span><time>{new Date(project.updatedAt).toLocaleString()}</time><div className="row-actions">{view === 'trash' ? <><button onClick={() => void restore(project.id)}>Restore</button><button className="danger" onClick={() => void permanentlyDelete(project.id)}>Delete</button></> : <><Link className="button" to={`/projects/${project.id}`}>Open</Link>{project.role === 'owner' && <><button onClick={() => void duplicate(project.id)}>Duplicate</button><button onClick={() => void rename(project)}>Rename</button><button className="danger" onClick={() => void trash(project.id)}>Trash</button></>}</>}</div>
+        <Link to={`/projects/${project.id}`} className="project-title"><TexDocumentIcon /><div><strong>{project.name}</strong><small>{project.description || 'No description'}</small></div></Link><span className="role">{project.role}</span><time>{new Date(project.updatedAt).toLocaleString()}</time><div className="row-actions">{view === 'trash' ? <><button onClick={() => void restore(project.id)}>Restore</button><button className="danger" onClick={() => void permanentlyDelete(project.id)}>Delete</button></> : <><Link className="button" to={`/projects/${project.id}`}>Open</Link>{project.role === 'owner' && <><button onClick={() => void duplicate(project.id)}>Duplicate</button><button onClick={() => void rename(project)}>Rename</button><button className="danger" onClick={() => void trash(project.id)}>Trash</button></>}</>}</div>
       </article>)}</section>
     </main>
     {showCreate && <div className="dialog-backdrop" role="presentation"><form className="dialog" onSubmit={create}><h2>New project</h2><label>Project name<input name="name" defaultValue="Untitled paper" autoFocus required maxLength={200} /></label><label>Description<textarea name="description" rows={3} maxLength={2000} /></label><div><button type="button" onClick={() => setShowCreate(false)}>Cancel</button><button className="primary">Create project</button></div></form></div>}

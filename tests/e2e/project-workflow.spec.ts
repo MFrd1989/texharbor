@@ -15,6 +15,7 @@ test('creates an account, keeps a persistent session, and durably saves source',
   await page.getByLabel('Password').fill('end-to-end-test-password');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'My projects' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'TeXHarbor' })).toBeVisible();
   const session = (await context.cookies()).find((cookie) => cookie.name === 'texharbor_session');
   expect(session?.httpOnly).toBe(true);
   expect(session?.secure).toBe(true);
@@ -30,6 +31,7 @@ test('creates an account, keeps a persistent session, and durably saves source',
   await page.getByRole('button', { name: '＋ New project' }).click();
   await page.getByLabel('Project name').fill('E2E Paper');
   await page.locator('.dialog').getByRole('button', { name: 'Create project' }).click();
+  await expect(page.locator('.project-file-icon')).toBeVisible();
   await page.getByRole('link', { name: /E2E Paper/ }).click();
 
   const editor = page.locator('.cm-content');
