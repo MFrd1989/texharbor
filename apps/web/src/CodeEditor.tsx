@@ -97,8 +97,7 @@ export function CodeEditor({ projectId, fileId, user, readOnly, onStatus, onPres
     const document = new Y.Doc();
     const text = document.getText('content');
     documentRef.current = document; textRef.current = text;
-    // Retain the legacy database key so offline edits survive the product rename.
-    const persistence = new IndexeddbPersistence(`texlyre:${projectId}:${fileId}`, document);
+    const persistence = new IndexeddbPersistence(`texharbor:${projectId}:${fileId}`, document);
     const websocketUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/collaboration`;
     const provider = new HocuspocusProvider({
       url: websocketUrl,

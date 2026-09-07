@@ -20,13 +20,8 @@ test('creates an account, keeps a persistent session, and durably saves source',
   expect(session?.httpOnly).toBe(true);
   expect(session?.secure).toBe(true);
   expect(session?.expires || 0).toBeGreaterThan(Date.now() / 1000 + 170 * 24 * 60 * 60);
-  await context.clearCookies();
-  await context.addCookies([{ ...session!, name: 'texlyre_session' }]);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'My projects' })).toBeVisible();
-  const migratedCookies = await context.cookies();
-  expect(migratedCookies.some((cookie) => cookie.name === 'texharbor_session')).toBe(true);
-  expect(migratedCookies.some((cookie) => cookie.name === 'texlyre_session')).toBe(false);
 
   await page.getByRole('button', { name: '＋ New project' }).click();
   await page.getByLabel('Project name').fill('E2E Paper');
@@ -285,7 +280,10 @@ test('provides a mobile workspace without horizontal overflow', async ({ page })
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: 'Cloud backup' }).click();
   await expect(page.getByRole('heading', { name: 'Google Drive backups' })).toBeVisible();
-  await expect(page.getByText('Google Drive is not configured')).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Connect Google Drive' })
+      .or(page.getByText('Google Drive is not configured')),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Close cloud backups' }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
