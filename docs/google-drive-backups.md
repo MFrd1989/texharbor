@@ -78,10 +78,12 @@ GOOGLE_CLIENT_SECRET=GOCSPX-example
 
 Keep `SESSION_SECRET` stable. TeXHarbor derives the encryption key for stored refresh tokens from it; changing it invalidates existing cloud connections. Never commit `.env` or paste credentials into browser code, logs, issues, or chat.
 
-Recreate only the application container so Compose reloads the environment:
+Recreate only the stateless application container so Compose reloads the environment. This explicit stop/remove/create sequence is compatible with the legacy `docker-compose` 1.29.2 installed on the current server and does not touch the database, worker, or named volumes:
 
 ```bash
-sudo docker-compose up -d --no-deps --force-recreate app
+sudo docker-compose stop app
+sudo docker-compose rm -f app
+sudo docker-compose up -d --no-deps --no-build app
 sudo docker-compose ps
 curl -f http://127.0.0.1:3000/api/health
 ```
@@ -114,6 +116,19 @@ Restoration is owner-only, verifies project identity and file hashes, disconnect
 ### “Google Drive is not configured”
 
 The variables were not loaded. Recheck `.env`, recreate the `app` container, and run the non-printing variable check above.
+
+### Legacy Compose reports `KeyError: 'ContainerConfig'`
+
+Docker Compose 1.29.2 can fail while trying to inspect an existing container created from a newer Docker image. The project data is not damaged. Remove and recreate only the stateless app container:
+
+```bash
+sudo docker-compose stop app
+sudo docker-compose rm -f app
+sudo docker-compose up -d --no-deps --no-build app
+curl -f http://127.0.0.1:3000/api/health
+```
+
+Never remove the `db` container or either named volume to resolve this error.
 
 ### `redirect_uri_mismatch`
 
