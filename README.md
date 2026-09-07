@@ -108,6 +108,8 @@ TeXHarbor is available at `http://localhost:3000` by default. For an internet-fa
 
 For Drive backups, enable the Google Drive API and register `${PUBLIC_ORIGIN}/api/cloud/google/callback` as an authorized redirect URI. TeXHarbor requests only `drive.file`, encrypts refresh tokens at rest, and remains fully usable when Drive is not configured or connected.
 
+See the complete [Google Drive backup setup and verification guide](docs/google-drive-backups.md) for Google Cloud Console, Docker deployment, testing, and troubleshooting steps.
+
 Do not commit `.env`, reuse development secrets in production, or remove named volumes during an upgrade.
 
 ## Development and Testing
