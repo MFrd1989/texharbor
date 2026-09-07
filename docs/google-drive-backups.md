@@ -38,9 +38,9 @@ Open **Google Auth Platform → Branding**. If prompted, click **Get started**, 
 
 Open **Audience** and select one option:
 
-- **External / Testing:** suitable for initial setup. Add every Google account that will test backups under **Test users**. Testing is limited to 100 users and grants can expire after seven days.
+- **External / Testing:** suitable for initial setup. Add every Google account that will test backups under **Test users**. Testing is limited to 100 users, and TeXHarbor's refresh-token grants expire after seven days.
 - **Internal:** only for users in the same Google Workspace organization.
-- **External / In production:** appropriate for long-lived public use. Google may require brand and sensitive-scope verification.
+- **External / In production:** appropriate for long-lived public use. Google may require basic app and branding verification; `drive.file` itself is a non-sensitive Drive scope.
 
 Open **Data Access → Add or remove scopes** and add only:
 
@@ -49,6 +49,8 @@ https://www.googleapis.com/auth/drive.file
 ```
 
 Do not add the broader `drive` scope. `drive.file` lets TeXHarbor access only files and folders it creates or that the user explicitly opens with the app.
+
+Test users must be added on the **Audience** page of the same Google Cloud project that owns the deployed OAuth client. Adding an account under **IAM & Admin** does not make it an OAuth test user. You can identify the active project by the number before the first hyphen in `GOOGLE_CLIENT_ID`; for example, client ID `123456789-example.apps.googleusercontent.com` belongs to project number `123456789`.
 
 ## 4. Create the OAuth Client
 
@@ -100,14 +102,27 @@ sudo docker-compose exec -T app sh -c \
 ## 6. Connect and Test
 
 1. Open TeXHarbor and sign in with a TeXHarbor account.
-2. Select **Cloud backup** in the dashboard sidebar.
-3. Click **Connect Google Drive**.
-4. Select an allowed Google account and approve the requested Drive permission.
-5. Confirm that the browser returns to TeXHarbor and the dialog shows the connected account.
-6. Select a project and click **Back up now**.
-7. Open Google Drive and confirm that **TeXHarbor Backups** contains a `.texharbor.zip` file.
-8. Change a project file and create another backup. Clicking again without changes should report that no new backup is needed.
-9. Test restoration on a non-critical project: choose an older backup, click **Restore**, confirm the warning, then reopen the project and verify its files.
+2. Select **Versions** in the dashboard sidebar.
+3. Save a local version to verify the local history first.
+4. Click **Connect Google Drive**.
+5. Select an allowed Google account and approve the requested Drive permission.
+6. Confirm that the browser returns to TeXHarbor and the dialog shows the connected account.
+7. Select a project and click **Save to Drive**.
+8. Open Google Drive and confirm that **TeXHarbor Backups** contains a `.texharbor.zip` file.
+9. Change a project file and create another version. Clicking the same destination again without changes should report that no new version is needed.
+10. Test restoration on a non-critical project: choose an older local or Drive version, click **Restore**, confirm the warning, then reopen the project and verify its files.
+
+## 7. Configure Scheduled Backups
+
+Each owned project has its own schedule under **Versions → Scheduled backups**:
+
+- **Destination:** local PostgreSQL storage, Google Drive, or both.
+- **Frequency:** hourly, every 6 or 12 hours, daily, or weekly.
+- **Retention:** 5 to 100 scheduled versions per destination.
+
+Scheduled backups run in the API service and flush active collaborative documents before creating an archive. They are content-aware, so an unchanged project does not create a duplicate version. Retention removes only older scheduled versions; manual versions and automatic pre-restore safety checkpoints are never removed automatically. Google retention also deletes the corresponding file from Drive.
+
+The schedule page reports the next run, last successful run, and the latest error. In Google OAuth Testing mode, refresh tokens expire after seven days, so Drive schedules will eventually report that the account must be reconnected. Use an appropriately published OAuth app for reliable long-running Drive schedules.
 
 Restoration is owner-only, verifies project identity and file hashes, disconnects active collaboration sessions, and creates a local safety checkpoint before replacing project state.
 
@@ -136,15 +151,23 @@ Compare the URI displayed by Google with the authorized redirect URI character f
 
 ### `access_denied` or the account cannot continue
 
-For an External app in Testing, add the Google account under **Audience → Test users**. A Google Workspace administrator may also block unapproved third-party apps.
+For an External app in Testing, add the exact Google account under **Google Auth Platform → Audience → Test users**. Then verify all of the following:
+
+1. Open the OAuth client used by TeXHarbor and note its client ID.
+2. Confirm its numeric prefix matches the project number of the currently selected Cloud project.
+3. Confirm the deployed `GOOGLE_CLIENT_ID` is that same client ID.
+4. Add the account as an OAuth **Test user**, not as an IAM principal.
+5. Save, allow time for Google’s settings to propagate, and retry in a private browser window with the exact account.
+
+If Google reaches the consent screen and reports that only developer-approved testers may continue, the redirect URI and TeXHarbor callback have already been reached far enough to identify the client; a redirect problem instead reports `redirect_uri_mismatch`. A Google Workspace administrator may separately block unapproved third-party apps.
 
 ### The unverified-app warning appears
 
 This is expected while an External app is in Testing or awaiting verification. Use only explicitly trusted test accounts, or complete Google’s production verification process.
 
-### Backups stop working after several days
+### Drive backups or schedules stop working after several days
 
-Testing-mode authorizations can expire after seven days. Reconnect Drive for testing, or move the properly configured application to production and complete any required verification.
+Testing-mode authorizations expire after seven days for TeXHarbor's Drive access. Reconnect Drive for testing, or move the properly configured application to production and complete any required verification.
 
 ### “Authorization expired; reconnect Google Drive”
 
@@ -164,6 +187,7 @@ TeXHarbor does not intentionally log OAuth tokens. Do not add token logging whil
 - Keep `SESSION_SECRET` and the OAuth client secret backed up securely.
 - Publish accurate branding, support, home-page, and privacy-policy information.
 - Complete Google verification when required for the selected audience and scope.
+- Choose a schedule and retention policy for each important project, and monitor the last-run status.
 - Retain PostgreSQL and project-storage backups; Drive is a secondary recovery layer.
 - Perform periodic backup and restore drills with a non-critical project.
 

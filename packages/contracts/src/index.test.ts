@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createCommentThreadSchema, createProjectSchema, registerSchema } from './index.js';
+import { backupScheduleSchema, createBackupSchema, createCommentThreadSchema, createProjectSchema, registerSchema } from './index.js';
 
 describe('account contracts', () => {
   it('normalizes email addresses', () => {
@@ -25,5 +25,17 @@ describe('comment contracts', () => {
 
   it('rejects malformed source anchors', () => {
     expect(createCommentThreadSchema.safeParse({ fileId: '6f1d45a5-70f7-40e7-b76d-4be42edc7870', body: 'Comment', anchor: { start: '<script>', end: 'AQID', quote: '' } }).success).toBe(false);
+  });
+});
+
+describe('backup contracts', () => {
+  it('accepts supported local and scheduled backup policies', () => {
+    expect(createBackupSchema.parse({ provider: 'local' })).toEqual({ provider: 'local' });
+    expect(backupScheduleSchema.parse({ enabled: true, destination: 'both', intervalHours: 24, retentionCount: 20 }).destination).toBe('both');
+  });
+
+  it('rejects unbounded or overly frequent schedules', () => {
+    expect(backupScheduleSchema.safeParse({ enabled: true, destination: 'local', intervalHours: 0, retentionCount: 20 }).success).toBe(false);
+    expect(backupScheduleSchema.safeParse({ enabled: true, destination: 'local', intervalHours: 24, retentionCount: 101 }).success).toBe(false);
   });
 });

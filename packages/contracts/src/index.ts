@@ -59,6 +59,39 @@ export const synctexQuerySchema = z.object({
   y: z.coerce.number().finite().min(0).max(20_000),
 });
 
+export const backupProviderSchema = z.enum(['local', 'google_drive']);
+export const backupDestinationSchema = z.enum(['local', 'google_drive', 'both']);
+export const createBackupSchema = z.object({ provider: backupProviderSchema });
+export const backupScheduleSchema = z.object({
+  enabled: z.boolean(),
+  destination: backupDestinationSchema,
+  intervalHours: z.union([z.literal(1), z.literal(6), z.literal(12), z.literal(24), z.literal(168)]),
+  retentionCount: z.number().int().min(2).max(100),
+});
+
+export type BackupProvider = z.infer<typeof backupProviderSchema>;
+export type BackupDestination = z.infer<typeof backupDestinationSchema>;
+export type BackupKind = 'manual' | 'scheduled' | 'pre_restore';
+export type BackupDto = {
+  id: string;
+  provider: BackupProvider;
+  kind: BackupKind;
+  fileName: string;
+  sourceHash: string | null;
+  size: number;
+  createdAt: string;
+};
+export type BackupScheduleDto = {
+  enabled: boolean;
+  destination: BackupDestination;
+  intervalHours: 1 | 6 | 12 | 24 | 168;
+  retentionCount: number;
+  nextRunAt: string | null;
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+};
+
 export type UserDto = { id: string; name: string; email: string; createdAt: string };
 export type ProjectRole = 'owner' | 'editor' | 'viewer';
 export type ProjectDto = {

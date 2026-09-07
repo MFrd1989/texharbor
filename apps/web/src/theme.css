@@ -719,7 +719,7 @@ select:hover {
 
 .cloud-dialog > header,
 .cloud-account,
-.cloud-project,
+.cloud-project-picker,
 .backup-history article {
   display: flex;
   align-items: center;
@@ -790,13 +790,11 @@ select:hover {
   text-overflow: ellipsis;
 }
 
-.cloud-project {
-  align-items: end;
-  margin: 18px 0;
+.cloud-project-picker {
+  margin: 0 0 18px;
 }
 
-.cloud-project label {
-  flex: 1;
+.cloud-project-picker label {
   display: grid;
   gap: 6px;
   margin: 0;
@@ -810,6 +808,7 @@ select:hover {
 }
 
 .backup-history article {
+  align-items: start;
   padding: 11px 0;
   border-top: 1px solid var(--line);
   font-size: 12px;
@@ -818,6 +817,143 @@ select:hover {
 .backup-history > p {
   color: var(--muted);
   font-size: 12px;
+}
+
+.backup-actions,
+.schedule-card,
+.drive-card {
+  margin: 12px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+}
+
+.backup-actions,
+.schedule-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.backup-actions h3,
+.schedule-card h3,
+.drive-card h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.backup-actions p,
+.schedule-card p,
+.drive-card > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.backup-actions > div:last-child,
+.backup-version-actions {
+  display: flex;
+  flex: none;
+  gap: 7px;
+}
+
+.switch-label {
+  display: flex !important;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 7px !important;
+  margin: 0 !important;
+}
+
+.switch-label input {
+  width: auto;
+}
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1.2fr auto;
+  align-items: end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.schedule-grid label {
+  margin: 0;
+  font-size: 10px;
+}
+
+.schedule-grid select {
+  min-width: 0;
+  width: 100%;
+  padding: 7px;
+  font-size: 11px;
+}
+
+.schedule-grid button {
+  height: 34px;
+}
+
+.schedule-card > small,
+.schedule-status {
+  display: block;
+  margin-top: 10px !important;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.schedule-failed {
+  color: var(--red);
+}
+
+.drive-card .cloud-account {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.drive-card .cloud-connect,
+.drive-card .cloud-unavailable {
+  margin-top: 10px;
+  padding: 12px;
+}
+
+.backup-version {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 3px;
+}
+
+.backup-version > div {
+  display: flex;
+  gap: 6px;
+}
+
+.backup-provider,
+.backup-kind {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.backup-provider {
+  background: #dff1ed;
+  color: #0d665f;
+}
+
+.backup-provider.google_drive {
+  background: #e6efff;
+  color: #28599b;
+}
+
+.backup-kind {
+  background: #e9edef;
+  color: var(--muted);
 }
 
 .success {
@@ -937,8 +1073,25 @@ select:hover {
 }
 
 [data-theme='dark'] .cloud-connect,
-[data-theme='dark'] .cloud-unavailable {
+[data-theme='dark'] .cloud-unavailable,
+[data-theme='dark'] .backup-actions,
+[data-theme='dark'] .schedule-card,
+[data-theme='dark'] .drive-card {
   background: #0b2029;
+}
+
+[data-theme='dark'] .backup-provider {
+  background: #153a3b;
+  color: #6ee7d2;
+}
+
+[data-theme='dark'] .backup-provider.google_drive {
+  background: #182f4b;
+  color: #9fc5ff;
+}
+
+[data-theme='dark'] .backup-kind {
+  background: #20333c;
 }
 
 [data-theme='dark'] .success {
@@ -999,8 +1152,14 @@ select:hover {
     grid-template-columns: auto auto;
   }
 
-  .cloud-project {
+  .cloud-project-picker,
+  .backup-actions,
+  .schedule-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .schedule-grid {
+    grid-template-columns: 1fr;
   }
 }

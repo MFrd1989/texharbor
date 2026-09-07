@@ -115,6 +115,47 @@ test('imports an Overleaf-style ZIP with nested files and binary assets', async 
   await expect(page.locator('.build-log')).toContainText(/plot-eps-conve\s*rted-to\.pdf/);
 });
 
+test('creates local versions, saves a schedule, and restores history', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New here? Create an account' }).click();
+  await page.getByLabel('Display name').fill('Version Researcher');
+  await page.getByLabel('Email address').fill(`versions-${Date.now()}@example.test`);
+  await page.getByLabel('Password').fill('versions-end-to-end-password');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await page.getByRole('button', { name: '＋ New project' }).click();
+  await page.getByLabel('Project name').fill('Versioned Paper');
+  await page.locator('.dialog').getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('link', { name: /Versioned Paper/ }).click();
+  await expect(page.getByText('● Saved', { exact: true })).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole('button', { name: 'Versions', exact: true }).click();
+  await page.getByRole('button', { name: 'Save locally' }).click();
+  await expect(page.getByRole('status')).toContainText('Local version created');
+  await expect(page.locator('.backup-history article')).toHaveCount(1);
+  await page.getByLabel('Enabled').check();
+  await page.getByLabel('Frequency').selectOption('1');
+  await page.getByLabel('Keep scheduled versions').selectOption('5');
+  await page.getByRole('button', { name: 'Save schedule' }).click();
+  await expect(page.getByRole('status')).toContainText('Backup schedule enabled');
+  await expect(page.locator('.schedule-status')).toContainText('Next run');
+  await page.getByRole('button', { name: 'Close backups and versions' }).click();
+
+  const editor = page.locator('.cm-content');
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('\nSecond saved state');
+  await expect(page.getByText('● Saved', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Versions', exact: true }).click();
+  await page.getByRole('button', { name: 'Save locally' }).click();
+  await expect(page.locator('.backup-history article')).toHaveCount(2);
+
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.locator('.backup-history article').nth(1).getByRole('button', { name: 'Restore' }).click();
+  await expect(page.locator('.cm-content')).not.toContainText('Second saved state', { timeout: 15_000 });
+  await page.getByRole('button', { name: 'Versions', exact: true }).click();
+  await expect(page.locator('.backup-history article')).toHaveCount(3);
+});
+
 test('synchronizes CRDT edits and awareness between simultaneous editors', async ({ page, context }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New here? Create an account' }).click();
@@ -278,13 +319,10 @@ test('provides a mobile workspace without horizontal overflow', async ({ page })
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.getByRole('button', { name: 'Cloud backup' }).click();
-  await expect(page.getByRole('heading', { name: 'Google Drive backups' })).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Connect Google Drive' })
-      .or(page.getByText('Google Drive is not configured')),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'Close cloud backups' }).click();
+  await page.getByRole('button', { name: 'Backups and versions' }).click();
+  await expect(page.getByRole('heading', { name: 'Backups & versions' })).toBeVisible();
+  await expect(page.getByText('Create or own a project before saving versions.')).toBeVisible();
+  await page.getByRole('button', { name: 'Close backups and versions' }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.getByRole('button', { name: '＋ New project' }).click();
