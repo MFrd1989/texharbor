@@ -9,6 +9,7 @@
     "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @texharbor/api\" \"npm run dev -w @texharbor/web\"",
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "playwright test",
+    "test:backups": "vitest run tests/api/backup-history.test.ts",
     "typecheck": "npm run build -w @texharbor/contracts && npm run build -w @texharbor/database && npm run typecheck -w @texharbor/api && npm run typecheck -w @texharbor/worker && npm run typecheck -w @texharbor/web"
   },
   "devDependencies": {

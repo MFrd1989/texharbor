@@ -109,7 +109,7 @@ sudo docker-compose exec -T app sh -c \
 6. Confirm that the browser returns to TeXHarbor and the dialog shows the connected account.
 7. Select a project and click **Save to Drive**.
 8. Open Google Drive and confirm that **TeXHarbor Backups** contains a `.texharbor.zip` file.
-9. Change a project file and create another version. Clicking the same destination again without changes should report that no new version is needed.
+9. Change a project file and create another version. It should show **Changes only** and store a `.texharbor.delta.zip` file. Clicking the same destination again without changes should report that no new version is needed.
 10. Test restoration on a non-critical project: choose an older local or Drive version, click **Restore**, confirm the warning, then reopen the project and verify its files.
 
 ## 7. Configure Scheduled Backups
@@ -120,11 +120,27 @@ Each owned project has its own schedule under **Versions → Scheduled backups**
 - **Frequency:** hourly, every 6 or 12 hours, daily, or weekly.
 - **Retention:** 5 to 100 scheduled versions per destination.
 
-Scheduled backups run in the API service and flush active collaborative documents before creating an archive. They are content-aware, so an unchanged project does not create a duplicate version. Retention removes only older scheduled versions; manual versions and automatic pre-restore safety checkpoints are never removed automatically. Google retention also deletes the corresponding file from Drive.
+Enabling a schedule saves the initial state immediately. Scheduled checks run in the API service and flush active collaborative documents before comparing content. An unchanged project creates neither an archive nor a version record.
+
+The first saved version per destination is a full base ZIP. Later versions contain a timestamped manifest and compressed byte deltas: unchanged files reference their parent, and edits within a file use copy ranges plus new bytes. Renamed files can reuse matching content from the parent. New files or replacements without a smaller delta store their full content. This is a linear incremental history, not an actual Git repository; it does not provide branches or a visual diff viewer.
+
+Retention removes only older scheduled versions. Manual versions and pre-restore safety checkpoints are never removed automatically. Before deleting a parent, TeXHarbor rebases surviving versions onto the nearest retained ancestor, or makes the oldest surviving version a new full base. This preserves restorability without accumulating full copies at manual checkpoints. Drive files are removed after the database commits the safe history; failed deletions are queued and retried by the scheduler.
+
+Keep the base and delta files together in **TeXHarbor Backups**, and delete history through TeXHarbor so it can preserve dependencies. A delta ZIP is not a standalone export. Existing full ZIP versions remain readable and become bases for later incremental versions; migration does not rewrite or delete old archives.
 
 The schedule page reports the next run, last successful run, and the latest error. In Google OAuth Testing mode, refresh tokens expire after seven days, so Drive schedules will eventually report that the account must be reconnected. Use an appropriately published OAuth app for reliable long-running Drive schedules.
 
-Restoration is owner-only, verifies project identity and file hashes, disconnects active collaboration sessions, and creates a local safety checkpoint before replacing project state.
+Restoration is owner-only, verifies project identity, parent references and file hashes, and disconnects active collaboration sessions before replacing project state. Current work is kept in local history; an identical saved state is reused instead of creating a redundant safety archive.
+
+## Incremental History Verification
+
+Run `npm test` and `npm run build`. Database/API regression tests additionally require a disposable PostgreSQL database whose name ends in `_backup_test`:
+
+```bash
+BACKUP_TEST_DATABASE_URL=postgres://backup_test:backup_test@127.0.0.1:55432/texharbor_backup_test npm run test:backups
+```
+
+The suite uses a temporary schema and covers concurrent saves, owner/editor/viewer access, unchanged runs, small diffs, restores, retention, and mocked Drive storage. Browser coverage is in `tests/e2e/project-workflow.spec.ts` under “creates local versions, saves a schedule, and restores history”.
 
 ## Troubleshooting
 

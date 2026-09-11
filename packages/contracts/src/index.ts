@@ -76,6 +76,8 @@ export type BackupDto = {
   id: string;
   provider: BackupProvider;
   kind: BackupKind;
+  storageFormat: 'full' | 'delta';
+  parentId: string | null;
   fileName: string;
   sourceHash: string | null;
   size: number;

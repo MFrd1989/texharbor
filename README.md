@@ -25,7 +25,7 @@ TeXHarbor combines a project dashboard, collaborative source editor, isolated La
 - Build logs, errors, warnings, continuous PDF viewing, and SyncTeX navigation
 - Responsive Files, Source, and PDF workspaces for mobile screens
 - Installable mobile web app with dedicated iOS, Android, and maskable icons
-- Content-aware local and Google Drive version history with safe restore
+- Incremental local and Google Drive history: one base plus compressed byte changes, with safe restore
 - Per-project scheduled backups with destination and retention policies
 - Persistent light and dark themes with system-theme detection
 
@@ -109,6 +109,8 @@ TeXHarbor is available at `http://localhost:3000` by default. For an internet-fa
 | `GOOGLE_CLIENT_SECRET` | Optional server-only Google OAuth client secret |
 
 Local versions require no external configuration. For Drive versions, enable the Google Drive API and register `${PUBLIC_ORIGIN}/api/cloud/google/callback` as an authorized redirect URI. TeXHarbor requests only `drive.file`, encrypts refresh tokens at rest, and remains fully usable when Drive is not configured or connected. Owners can schedule local, Drive, or redundant copies per project with bounded retention.
+
+Enabling a schedule saves the initial state immediately. Subsequent versions reuse unchanged files and byte ranges within changed files; checks with no content or project-setting changes create no version. History stores timestamps and hashes, and restores reconstruct the selected state from its base and changes. Retention rebases surviving changes before removing their parents. Existing full ZIP backups remain readable and can serve as a base for new incremental history.
 
 See the complete [Google Drive backup setup and verification guide](docs/google-drive-backups.md) for Google Cloud Console, Docker deployment, testing, and troubleshooting steps.
 
